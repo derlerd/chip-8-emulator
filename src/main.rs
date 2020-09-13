@@ -1,6 +1,6 @@
 mod chip;
 
-use crate::chip::{Chip, Chip8, Opcode};
+use crate::chip::{Chip, Chip8};
 
 fn main() {
     let mut chip8 = Chip8::new();

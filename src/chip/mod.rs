@@ -89,6 +89,32 @@ impl Opcode {
 	pub fn execute(self, state : Chip8) -> Chip8 {
 		let mut next_state = state.clone();
 		match self.bytes[0] {
+			0x0 => {
+				let payload = self.address();
+				match payload {
+					0x0E0 => {
+						next_state.gfx = [0; 64 * 32];
+						next_state.program_counter += 2;
+					},
+					0x0EE => {
+						assert!(state.stack_pointer > 0, "Stack underflow");
+						next_state.program_counter = state.stack[(state.stack_pointer - 1) as usize];
+						next_state.stack_pointer = state.stack_pointer - 1;
+						next_state.program_counter += 2;
+						
+					},
+					_ => panic!("Opcode not supported {:x}", payload),
+				};
+			}
+			0x1 => {
+				next_state.program_counter = self.address();
+   			},
+			0x2 => {
+				assert!(state.stack_pointer < 16, "Stack overflow");
+				next_state.stack[next_state.stack_pointer as usize] = state.program_counter;
+				next_state.stack_pointer = state.stack_pointer + 1;
+				next_state.program_counter = self.address();
+			}
 			0xA => {
 				next_state.index = self.address();
                 next_state.program_counter += 2;
@@ -105,6 +131,12 @@ impl Opcode {
 				println!("{:b}", sample);
 				
 				next_state.registers[reg as usize] = sample as u8 & value;
+
+				next_state.program_counter += 2;
+			}
+			0xD => {
+				let (regX, regY, height) = self.regs_and_op();
+
 			}
 			_ => unimplemented!(),
 		};
