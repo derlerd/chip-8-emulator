@@ -2,6 +2,9 @@ use rand::{thread_rng, Rng};
 
 use crate::chip::Chip;
 
+#[cfg(test)]
+mod tests;
+
 const CHIP8_CHARSET_OFFSET: u16 = 0x50; // 80
 
 const CHIP8_CHARSET_LEN: u16 = 0x50; // 80
@@ -56,7 +59,6 @@ impl Chip for Chip8 {
         self.memory[index] = byte;
     }
 }
-
 
 impl Chip8 {
     pub fn new() -> Self {
@@ -167,8 +169,9 @@ impl Opcode {
             }
             0x2 => {
                 assert!(state.stack_pointer < 16, "Stack overflow");
-                next_state.stack[next_state.stack_pointer as usize] = state.program_counter;
-                next_state.stack_pointer = state.stack_pointer + 1;
+                increment_program_counter(&mut next_state);
+                next_state.stack[next_state.stack_pointer as usize] = next_state.program_counter;
+                next_state.stack_pointer = next_state.stack_pointer + 1;
                 next_state.program_counter = self.address();
             }
             0x3 => {
@@ -264,5 +267,6 @@ impl Opcode {
             _ => unimplemented!(),
         };
         next_state
+
     }
 }
