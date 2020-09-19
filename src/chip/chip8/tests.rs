@@ -214,25 +214,64 @@ fn test_add_to_register() {
     }
 }
 
-#[test]
-fn test_set_register_to_register() {
-	for r1 in 0x0..0xF {
+fn test_set_register_to_f_of_registers(base_instruction: u16, f: fn(u8, u8) -> (u8, Option<bool>)) {
+    for r1 in 0x0..0xF {
         for r2 in 0x0..0xF {
-            let instruction: u16 = 0x8000 | (r1 << 8) as u16 | (r2 << 4) as u16;
+            let mut rng = thread_rng();
+            let value_r1: u8 = rng.gen_range(0, 0xFF);
+            let value_r2: u8 = rng.gen_range(0, 0xFF);
+
+            let instruction: u16 = base_instruction | (r1 << 8) as u16 | (r2 << 4) as u16;
             do_cycle(
                 instruction,
                 |state| {
                     assert_eq!(state.registers[r1 as usize], 0x00);
                     assert_eq!(state.registers[r2 as usize], 0x00);
                     assert_eq!(state.program_counter, 0x200);
-                    state.registers[r2 as usize] = 0xAB;
+
+                    state.registers[r1 as usize] = value_r1;
+                    state.registers[r2 as usize] = value_r2;
                 },
                 |state| {
-                    assert_eq!(state.registers[r1 as usize], 0xAB);
-                    assert_eq!(state.registers[r2 as usize], 0xAB);
+                    let (result, carry) = f(if r1 == r2 { value_r2 } else { value_r1 }, value_r2);
+
+                    assert_eq!(state.registers[r1 as usize], result);
+
+                    if r1 != r2 {
+                        assert_eq!(state.registers[r2 as usize], value_r2);
+                    }
+
+                    match carry {
+                        Some(true) => assert_eq!(state.registers[0xF], 1),
+                        Some(false) => assert_eq!(state.registers[0xF], 0),
+                        None => {}
+                    }
+
                     assert_eq!(state.program_counter, 0x202);
                 },
             )
         }
     }
+}
+
+#[test]
+fn test_set_register_to_register() {
+    test_set_register_to_f_of_registers(0x8000, |_, r2| (r2, None));
+    test_set_register_to_f_of_registers(0x8001, |r1, r2| (r1 | r2, None));
+    test_set_register_to_f_of_registers(0x8002, |r1, r2| (r1 & r2, None));
+    test_set_register_to_f_of_registers(0x8003, |r1, r2| (r1 ^ r2, None));
+    test_set_register_to_f_of_registers(0x8004, |r1, r2| {
+        let (result, overflow) = r1.overflowing_add(r2);
+        (result, Some(overflow))
+    });
+    test_set_register_to_f_of_registers(0x8005, |r1, r2| {
+        let (result, overflow) = r1.overflowing_sub(r2);
+        (result, Some(!overflow))
+    });
+    test_set_register_to_f_of_registers(0x8006, |r1, _| (r1 >> 1, Some(r1 & 1 != 0)));
+    test_set_register_to_f_of_registers(0x8007, |r1, r2| {
+        let (result, overflow) = r2.overflowing_sub(r1);
+        (result, Some(!overflow))
+    });
+    test_set_register_to_f_of_registers(0x800E, |r1, _| (r1 << 1, Some(r1 & 0x80 != 0)));
 }
