@@ -179,9 +179,11 @@ fn test_set_register_to_value() {
                 instruction,
                 |state| {
                     assert_eq!(state.registers[register as usize], 0x0);
+                    assert_eq!(state.program_counter, 0x200);
                 },
                 |state| {
                     assert_eq!(state.registers[register as usize], value);
+                    assert_eq!(state.program_counter, 0x202);
                 },
             )
         }
@@ -197,6 +199,7 @@ fn test_add_to_register() {
                 instruction,
                 |state| {
                     assert_eq!(state.registers[register as usize], 0x00);
+                    assert_eq!(state.program_counter, 0x200);
                     state.registers[register as usize] = 0xAB;
                 },
                 |state| {
@@ -204,6 +207,7 @@ fn test_add_to_register() {
                         state.registers[register as usize],
                         (value as u8).wrapping_add(0xAB)
                     );
+                    assert_eq!(state.program_counter, 0x202);
                 },
             )
         }
@@ -220,11 +224,13 @@ fn test_set_register_to_register() {
                 |state| {
                     assert_eq!(state.registers[r1 as usize], 0x00);
                     assert_eq!(state.registers[r2 as usize], 0x00);
+                    assert_eq!(state.program_counter, 0x200);
                     state.registers[r2 as usize] = 0xAB;
                 },
                 |state| {
                     assert_eq!(state.registers[r1 as usize], 0xAB);
                     assert_eq!(state.registers[r2 as usize], 0xAB);
+                    assert_eq!(state.program_counter, 0x202);
                 },
             )
         }
