@@ -134,8 +134,7 @@ fn test_skip_if_not_equal() {
     }
 }
 
-#[test]
-fn test_skip_if_reg_equal() {
+fn test_skip_if_reg(base_instruction: u16, equal: bool) {
     let mut rng = thread_rng();
     let r1: usize = rng.gen_range(0, 15);
     let mut r2: usize = rng.gen_range(0, 15);
@@ -143,7 +142,10 @@ fn test_skip_if_reg_equal() {
         r2 = rng.gen_range(0, 15);
     }
 
-    let instruction: u16 = 0x5000 as u16 | (r1 << 8) as u16 | (r2 << 4) as u16;
+    let instruction: u16 = base_instruction | (r1 << 8) as u16 | (r2 << 4) as u16;
+
+    let ctr_equal = if equal { 0x204 } else { 0x202 };
+    let ctr_not_equal = if !equal { 0x204 } else { 0x202 };
 
     do_cycle(
         instruction,
@@ -153,7 +155,7 @@ fn test_skip_if_reg_equal() {
             assert_eq!(state.program_counter, 0x200);
         },
         |state| {
-            assert_eq!(state.program_counter, 0x204);
+            assert_eq!(state.program_counter, ctr_equal);
         },
     );
 
@@ -165,9 +167,14 @@ fn test_skip_if_reg_equal() {
             assert_eq!(state.program_counter, 0x200);
         },
         |state| {
-            assert_eq!(state.program_counter, 0x202);
+            assert_eq!(state.program_counter, ctr_not_equal);
         },
     );
+}
+
+#[test]
+fn test_skip_if_reg_equal() {
+    test_skip_if_reg(0x5000, true);
 }
 
 #[test]
@@ -274,4 +281,43 @@ fn test_set_register_to_register() {
         (result, Some(!overflow))
     });
     test_set_register_to_f_of_registers(0x800E, |r1, _| (r1 << 1, Some(r1 & 0x80 != 0)));
+}
+
+#[test]
+fn test_skip_if_reg_not_equal() {
+    test_skip_if_reg(0x9000, false);
+}
+
+#[test]
+fn test_set_index() {
+    for value in 0x0..0xFFF {
+        let instruction = 0xA000 as u16 | value as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+            },
+            |state| {
+                assert_eq!(state.program_counter, 0x202);
+                assert_eq!(state.index, value);
+            },
+        );
+    }
+}
+
+#[test]
+fn test_set_program_counter() {
+    for value in 0x0..0xFFF {
+        let instruction = 0xB000 as u16 | value as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[0] = 0xA;
+            },
+            |state| {
+                assert_eq!(state.program_counter, (0xA as u16).wrapping_add(value));
+            },
+        );
+    }
 }

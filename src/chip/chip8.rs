@@ -249,9 +249,7 @@ impl Opcode {
                 increment_program_counter(&mut next_state);
             }
             0xB => {
-                let (result, overflow) = self.address().overflowing_add(state.registers[0] as u16);
-                assert_eq!(overflow, false, "Program counter overflow");
-                next_state.program_counter = result;
+                next_state.program_counter = self.address().wrapping_add(state.registers[0] as u16);
             }
             0xC => {
                 let (reg, value) = self.reg_and_value();
