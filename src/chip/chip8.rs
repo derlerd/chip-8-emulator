@@ -192,7 +192,7 @@ impl Opcode {
                 conditional_skip(&self, &mut next_state, |opcode, state| {
                     let (reg1, reg2, zero) = opcode.regs_and_op();
                     assert_eq!(zero, 0, "Unsupported opcode");
-                    state.registers[reg1 as usize] != state.registers[reg2 as usize]
+                    state.registers[reg1 as usize] == state.registers[reg2 as usize]
                 });
                 increment_program_counter(&mut next_state);
             }
@@ -267,6 +267,5 @@ impl Opcode {
             _ => unimplemented!(),
         };
         next_state
-
     }
 }
