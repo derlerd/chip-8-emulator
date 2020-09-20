@@ -321,3 +321,45 @@ fn test_set_program_counter() {
         );
     }
 }
+
+fn test_skip_if_key(pressed : bool) {
+	let base_instruction : u16 = if pressed { 0xE09E } else { 0xE0A1 };
+	for reg in 0x0 .. 0xF {
+		let instruction = base_instruction | (reg << 8) as u16;
+		do_cycle(
+	        instruction,
+	        |state| {
+	            assert_eq!(state.program_counter, 0x200);
+	            state.registers[reg as usize] = 0x1;
+	            state.key[0x1] = pressed;
+	        },
+	        |state| {
+	            assert_eq!(state.program_counter, 0x204);
+	        },
+	    );
+
+	    do_cycle(
+	        instruction,
+	        |state| {
+	            assert_eq!(state.program_counter, 0x200);
+	            state.registers[reg as usize] = 0x1;
+	            state.key[0x1] = !pressed;
+	        },
+	        |state| {
+	            assert_eq!(state.program_counter, 0x202);
+	        },
+	    );
+	}
+}
+
+#[test]
+fn test_skip_if_key_pressed() {
+	test_skip_if_key(true);
+}
+
+
+#[test]
+fn test_skip_if_key_not_pressed() {
+	test_skip_if_key(false);
+}
+
