@@ -1,4 +1,5 @@
 use crate::chip::chip8::Chip8;
+use crate::chip::chip8::CHIP8_CHARSET_OFFSET;
 use crate::chip::Chip;
 
 use rand::{thread_rng, Rng};
@@ -322,6 +323,37 @@ fn test_set_program_counter() {
     }
 }
 
+#[test]
+fn test_draw_sprite() {
+    fn translate_gfx(x: u16, y: u16) -> usize {
+        ((x % 64) + ((y % 32) * 64)) as usize
+    }
+
+    do_cycle(
+        0xD015,
+        |state| {
+            assert_eq!(state.program_counter, 0x200);
+            state.registers[0] = 0x0;
+            state.registers[1] = 0x0;
+            state.index = CHIP8_CHARSET_OFFSET;
+        },
+        |state| {
+            for y in 0..5 {
+                let mut mask = 0x80;
+                for x in 0..8 {
+                    let index = translate_gfx(x, y);
+                    assert_eq!(
+                        state.memory[((state.index + y) % 4096) as usize] & mask > 0,
+                        state.gfx[index]
+                    );
+                    mask >>= 1;
+                }
+            }
+            assert_eq!(state.program_counter, 0x202);
+        },
+    );
+}
+
 fn test_skip_if_key(pressed: bool) {
     let base_instruction: u16 = if pressed { 0xE09E } else { 0xE0A1 };
     for reg in 0x0..=0xF {
@@ -439,22 +471,22 @@ fn test_inc_index_by_reg() {
 
 #[test]
 fn test_bcd() {
-	for reg in 0x0..=0xF {
-	let instruction = 0xF033 as u16 | (reg << 8) as u16;
-	do_cycle(
-        instruction,
-        |state| {
-            assert_eq!(state.program_counter, 0x200);
-            state.registers[reg] = 123;
-        },
-        |state| {
-            assert_eq!(state.program_counter, 0x202);
-            assert_eq!(state.memory[(state.index + 0) as usize], 1);
-            assert_eq!(state.memory[(state.index + 1) as usize], 2);            
-            assert_eq!(state.memory[(state.index + 2) as usize], 3);
-        },
-    );
-}
+    for reg in 0x0..=0xF {
+        let instruction = 0xF033 as u16 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[reg] = 123;
+            },
+            |state| {
+                assert_eq!(state.program_counter, 0x202);
+                assert_eq!(state.memory[(state.index + 0) as usize], 1);
+                assert_eq!(state.memory[(state.index + 1) as usize], 2);
+                assert_eq!(state.memory[(state.index + 2) as usize], 3);
+            },
+        );
+    }
 }
 
 #[test]

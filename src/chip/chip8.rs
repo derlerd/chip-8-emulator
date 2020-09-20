@@ -35,7 +35,7 @@ pub struct Chip8 {
     registers: [u8; 16],
     index: u16,
     program_counter: u16,
-    gfx: [u8; 64 * 32],
+    gfx: [bool; 64 * 32],
     delay_timer: u8,
     sound_timer: u8,
     stack: [u16; 16],
@@ -74,7 +74,7 @@ impl Chip8 {
             registers: [0; 16],
             index: 0,
             program_counter: 0x200,
-            gfx: [0; 64 * 32],
+            gfx: [false; 64 * 32],
             delay_timer: 0,
             sound_timer: 0,
             stack: [0; 16],
@@ -117,7 +117,7 @@ impl Opcode {
         (self.bytes[1], (self.bytes[2] << 4) | self.bytes[3])
     }
 
-    pub fn regs_and_op(&self) -> (u8, u8, u8) {
+    pub fn operands(&self) -> (u8, u8, u8) {
         (self.bytes[1], self.bytes[2], self.bytes[3])
     }
 
@@ -147,13 +147,17 @@ impl Opcode {
             }
         }
 
+        fn translate_gfx(x: u16, y: u16) -> usize {
+            ((x % 64) + ((y % 32) * 64)) as usize
+        }
+
         let mut next_state = state.clone();
         match self.bytes[0] {
             0x0 => {
                 let payload = self.address();
                 match payload {
                     0x0E0 => {
-                        next_state.gfx = [0; 64 * 32];
+                        next_state.gfx = [false; 64 * 32];
                         next_state.program_counter += 2;
                     }
                     0x0EE => {
@@ -192,7 +196,7 @@ impl Opcode {
             }
             0x5 => {
                 conditional_skip(&self, &mut next_state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.regs_and_op();
+                    let (reg1, reg2, zero) = opcode.operands();
                     assert_eq!(zero, 0, "Unsupported opcode");
                     state.registers[reg1 as usize] == state.registers[reg2 as usize]
                 });
@@ -210,7 +214,7 @@ impl Opcode {
                 increment_program_counter(&mut next_state);
             }
             0x8 => {
-                let (reg1, reg2, op) = self.regs_and_op();
+                let (reg1, reg2, op) = self.operands();
                 match op {
                     0x0 => modify_registers(&mut next_state, reg1, reg2, |_, v2| (v2, None)),
                     0x1 => modify_registers(&mut next_state, reg1, reg2, |v1, v2| (v1 | v2, None)),
@@ -240,7 +244,7 @@ impl Opcode {
             }
             0x9 => {
                 conditional_skip(&self, &mut next_state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.regs_and_op();
+                    let (reg1, reg2, zero) = opcode.operands();
                     assert_eq!(zero, 0, "Unsupported opcode");
                     state.registers[reg1 as usize] != state.registers[reg2 as usize]
                 });
@@ -263,12 +267,45 @@ impl Opcode {
 
                 increment_program_counter(&mut next_state);
             }
+            0xD => {
+                let (x, y, n) = self.operands();
+
+                let x = next_state.registers[x as usize];
+                let y = next_state.registers[y as usize];
+
+                next_state.registers[0xF] = 0;
+                for y_pos in 0..n {
+                    let pixel_byte =
+                        next_state.memory[((next_state.index + y_pos as u16) % 4096) as usize];
+
+                    let mut x_pos = 0;
+                    let mut pixel_mask = 0x80;
+
+                    while x_pos < 8 {
+                        let pixel_bit = (pixel_byte & pixel_mask) > 0;
+
+                        let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
+                        if pixel_bit {
+                            next_state.gfx[pixel_pos] = true;
+                        } else {
+                            if next_state.gfx[pixel_pos] {
+                                next_state.registers[0xF] = 1;
+                            }
+                            next_state.gfx[pixel_pos] = false;
+                        }
+
+                        x_pos += 1;
+                        pixel_mask >>= 1;
+                    }
+                }
+                increment_program_counter(&mut next_state);
+            }
             0xE => {
                 let (reg, value) = self.reg_and_value();
                 let skip = match value {
                     0x9E => next_state.key[next_state.registers[reg as usize] as usize],
                     0xA1 => !next_state.key[next_state.registers[reg as usize] as usize],
-                    _ => panic!("Unsupported opcode"),
+                    _ => unimplemented!("Unsupported opcode"),
                 };
                 if skip {
                     increment_program_counter(&mut next_state);
@@ -282,7 +319,8 @@ impl Opcode {
                         next_state.registers[reg as usize] = next_state.delay_timer;
                     }
                     0x0A => {
-                        panic!("Not implemented yet");
+                        next_state.index = CHIP8_CHARSET_OFFSET
+                            + ((next_state.registers[reg as usize] as u16) * 5);
                     }
                     0x15 => {
                         next_state.delay_timer = next_state.registers[reg as usize];
@@ -296,12 +334,12 @@ impl Opcode {
                             .wrapping_add(next_state.registers[reg as usize] as u16);
                     }
                     0x29 => {
-                        panic!("Not implemented yet");
+                        unimplemented!("Not implemented yet");
                     }
                     0x33 => {
-                        let mut a : u8 = next_state.registers[reg as usize];
+                        let mut a: u8 = next_state.registers[reg as usize];
                         next_state.memory[(next_state.index + 2) as usize] = (a % 10) as u8;
-                        
+
                         a /= 10;
                         next_state.memory[(next_state.index + 1) as usize] = (a % 10) as u8;
 
@@ -320,12 +358,11 @@ impl Opcode {
                                 [((next_state.index + reg as u16) % 4096) as usize];
                         }
                     }
-                    _ => panic!("Unsupported opcode"),
+                    _ => unimplemented!("Unsupported opcode"),
                 }
                 increment_program_counter(&mut next_state);
             }
-            // TODO implement IO operations
-            _ => unimplemented!(),
+            _ => unimplemented!("Unsupported opcode"),
         };
         next_state
     }
