@@ -319,8 +319,20 @@ impl Opcode {
                         next_state.registers[reg as usize] = next_state.delay_timer;
                     }
                     0x0A => {
-                        next_state.index = CHIP8_CHARSET_OFFSET
-                            + ((next_state.registers[reg as usize] as u16) * 5);
+                        let mut key_pressed = false;
+                        for i in 0x0..=0xF {
+                            if next_state.key[i] {
+                                next_state.registers[reg as usize] = i as u8;
+                                key_pressed = true;
+                                break;
+                            }
+                        }
+
+                        if !key_pressed {
+                            // if no key was pressed, we directly return without
+                            // incrementing the program counter
+                            return next_state;
+                        }
                     }
                     0x15 => {
                         next_state.delay_timer = next_state.registers[reg as usize];
@@ -334,7 +346,9 @@ impl Opcode {
                             .wrapping_add(next_state.registers[reg as usize] as u16);
                     }
                     0x29 => {
-                        unimplemented!("Not implemented yet");
+                        let character: u16 = next_state.registers[reg as usize] as u16;
+                        assert!(character <= 0xF);
+                        next_state.index = CHIP8_CHARSET_OFFSET + character * 5;
                     }
                     0x33 => {
                         let mut a: u8 = next_state.registers[reg as usize];

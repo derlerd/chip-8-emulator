@@ -413,6 +413,35 @@ fn test_get_delay_timer() {
 }
 
 #[test]
+fn test_load_key_press() {
+    for reg in 0x0..=0xF {
+        let instruction = 0xF00A | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+            },
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+            },
+        );
+
+        for key in 0x0..=0xF {
+            do_cycle(
+                instruction,
+                |state| {
+                    assert_eq!(state.program_counter, 0x200);
+                    state.key[key] = true;
+                },
+                |state| {
+                    assert_eq!(state.program_counter, 0x202);
+                },
+            );
+        }
+    }
+}
+
+#[test]
 fn test_set_delay_timer() {
     for reg in 0x0..=0xF {
         let instruction = 0xF015 | (reg << 8) as u16;
@@ -463,6 +492,26 @@ fn test_inc_index_by_reg() {
                 |state| {
                     assert_eq!(state.index, (0xAB as u16).wrapping_add(index));
                     assert_eq!(state.program_counter, 0x202);
+                },
+            );
+        }
+    }
+}
+
+#[test]
+fn test_load_sprite() {
+    for reg in 0x0..=0xF {
+        for character in 0x0..=0xF {
+            let instruction = 0xF029 as u16 | (reg << 8) as u16;
+            do_cycle(
+                instruction,
+                |state| {
+                    assert_eq!(state.program_counter, 0x200);
+                    state.registers[reg] = character;
+                },
+                |state| {
+                    assert_eq!(state.program_counter, 0x202);
+                    assert_eq!(state.index, CHIP8_CHARSET_OFFSET + character as u16 * 5);
                 },
             );
         }
