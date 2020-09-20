@@ -299,7 +299,14 @@ impl Opcode {
                         panic!("Not implemented yet");
                     }
                     0x33 => {
-                        panic!("Not implemented yet");
+                        let mut a : u8 = next_state.registers[reg as usize];
+                        next_state.memory[(next_state.index + 2) as usize] = (a % 10) as u8;
+                        
+                        a /= 10;
+                        next_state.memory[(next_state.index + 1) as usize] = (a % 10) as u8;
+
+                        a /= 10;
+                        next_state.memory[next_state.index as usize] = (a % 10) as u8;
                     }
                     0x55 => {
                         for reg in 0x0..=reg {

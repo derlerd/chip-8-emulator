@@ -438,6 +438,26 @@ fn test_inc_index_by_reg() {
 }
 
 #[test]
+fn test_bcd() {
+	for reg in 0x0..=0xF {
+	let instruction = 0xF033 as u16 | (reg << 8) as u16;
+	do_cycle(
+        instruction,
+        |state| {
+            assert_eq!(state.program_counter, 0x200);
+            state.registers[reg] = 123;
+        },
+        |state| {
+            assert_eq!(state.program_counter, 0x202);
+            assert_eq!(state.memory[(state.index + 0) as usize], 1);
+            assert_eq!(state.memory[(state.index + 1) as usize], 2);            
+            assert_eq!(state.memory[(state.index + 2) as usize], 3);
+        },
+    );
+}
+}
+
+#[test]
 fn test_reg_dump_load() {
     let mut register_values = [0; 16];
     let mut rng = thread_rng();
