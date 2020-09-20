@@ -40,6 +40,7 @@ pub struct Chip8 {
     sound_timer: u8,
     stack: [u16; 16],
     stack_pointer: u16,
+    key: [bool; 16],
 }
 
 impl Chip for Chip8 {
@@ -78,6 +79,7 @@ impl Chip8 {
             sound_timer: 0,
             stack: [0; 16],
             stack_pointer: 0,
+            key: [false; 16],
         }
     }
 
@@ -260,6 +262,59 @@ impl Opcode {
                 next_state.registers[reg as usize] = sample as u8 & value;
 
                 increment_program_counter(&mut next_state);
+            }
+            0xE => {
+                let (reg, value) = self.reg_and_value();
+                let skip = match value {
+                    0x9E => next_state.key[next_state.registers[reg as usize] as usize],
+                    0xA1 => !next_state.key[next_state.registers[reg as usize] as usize],
+                    _ => panic!("Unsupported opcode"),
+                };
+                if skip {
+                    increment_program_counter(&mut next_state);
+                }
+                increment_program_counter(&mut next_state);
+            }
+            0xF => {
+                let (reg, value) = self.reg_and_value();
+                match value {
+                    0x07 => {
+                        next_state.registers[reg as usize] = next_state.delay_timer;
+                    }
+                    0x0A => {
+                        panic!("Not implemented yet");
+                    }
+                    0x15 => {
+                        next_state.delay_timer = next_state.registers[reg as usize];
+                    }
+                    0x18 => {
+                        next_state.sound_timer = next_state.registers[reg as usize];
+                    }
+                    0x1E => {
+                        next_state.index = next_state
+                            .index
+                            .wrapping_add(next_state.registers[reg as usize] as u16);
+                    }
+                    0x29 => {
+                        panic!("Not implemented yet");
+                    }
+                    0x33 => {
+                        panic!("Not implemented yet");
+                    }
+                    0x55 => {
+                        for reg in 0x0..0xF {
+                            next_state.memory[((next_state.index + reg) % 4096) as usize] =
+                                next_state.registers[reg as usize];
+                        }
+                    }
+                    0x65 => {
+                        for reg in 0x0..0xF {
+                            next_state.registers[reg as usize] =
+                                next_state.memory[((next_state.index + reg) % 4096) as usize];
+                        }
+                    }
+                    _ => panic!("Unsupported opcode"),
+                }
             }
             // TODO implement IO operations
             _ => unimplemented!(),
