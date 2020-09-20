@@ -302,19 +302,20 @@ impl Opcode {
                         panic!("Not implemented yet");
                     }
                     0x55 => {
-                        for reg in 0x0..0xF {
-                            next_state.memory[((next_state.index + reg) % 4096) as usize] =
+                        for reg in 0x0..=reg {
+                            next_state.memory[((next_state.index + reg as u16) % 4096) as usize] =
                                 next_state.registers[reg as usize];
                         }
                     }
                     0x65 => {
-                        for reg in 0x0..0xF {
-                            next_state.registers[reg as usize] =
-                                next_state.memory[((next_state.index + reg) % 4096) as usize];
+                        for reg in 0x0..=reg {
+                            next_state.registers[reg as usize] = next_state.memory
+                                [((next_state.index + reg as u16) % 4096) as usize];
                         }
                     }
                     _ => panic!("Unsupported opcode"),
                 }
+                increment_program_counter(&mut next_state);
             }
             // TODO implement IO operations
             _ => unimplemented!(),

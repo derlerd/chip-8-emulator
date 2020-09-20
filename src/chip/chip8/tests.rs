@@ -29,7 +29,7 @@ fn test_jump() {
         |state| {
             assert_eq!(state.program_counter, 0xCAF);
         },
-    )
+    );
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn test_call() {
             assert_eq!(state.program_counter, 0xCAF);
             assert_eq!(state.stack[(state.stack_pointer - 1) as usize], 0x202);
         },
-    )
+    );
 }
 
 enum Condition {
@@ -58,7 +58,7 @@ fn test_skip_if(
     cmp_value_neq: u8,
     condition: Condition,
 ) {
-    assert!(register < 16);
+    assert!(register <= 0xF);
     let check_equal = |state: &mut Chip8| {
         assert_eq!(
             state.program_counter,
@@ -100,8 +100,8 @@ fn test_skip_if(
 
 #[test]
 fn test_skip_if_equal() {
-    for cmp in 0x0..0xFF {
-        for reg in 0..15 {
+    for cmp in 0x0..=0xFF {
+        for reg in 0..=0xF {
             let mut instruction = 0x3000;
             instruction |= cmp;
             instruction |= reg << 8;
@@ -109,7 +109,7 @@ fn test_skip_if_equal() {
                 instruction,
                 reg.try_into().unwrap(),
                 cmp.try_into().unwrap(),
-                (cmp.wrapping_add(1)).try_into().unwrap(),
+                ((cmp as u8).wrapping_add(1)).try_into().unwrap(),
                 Condition::Equal,
             );
         }
@@ -118,8 +118,8 @@ fn test_skip_if_equal() {
 
 #[test]
 fn test_skip_if_not_equal() {
-    for cmp in 0x0..0xFF {
-        for register in 0x0..0xF {
+    for cmp in 0x0..=0xFF {
+        for register in 0x0..=0xF {
             let mut instruction = 0x4000;
             instruction |= cmp;
             instruction |= register << 8;
@@ -127,7 +127,7 @@ fn test_skip_if_not_equal() {
                 instruction,
                 register.try_into().unwrap(),
                 cmp.try_into().unwrap(),
-                (cmp.wrapping_add(1)).try_into().unwrap(),
+                ((cmp as u8).wrapping_add(1)).try_into().unwrap(),
                 Condition::NotEqual,
             );
         }
@@ -179,8 +179,8 @@ fn test_skip_if_reg_equal() {
 
 #[test]
 fn test_set_register_to_value() {
-    for value in 0x0..0xFF {
-        for register in 0x0..0xF {
+    for value in 0x0..=0xFF {
+        for register in 0x0..=0xF {
             let instruction: u16 = 0x6000 | (register << 8) as u16 | value as u16;
             do_cycle(
                 instruction,
@@ -192,7 +192,7 @@ fn test_set_register_to_value() {
                     assert_eq!(state.registers[register as usize], value);
                     assert_eq!(state.program_counter, 0x202);
                 },
-            )
+            );
         }
     }
 }
@@ -216,7 +216,7 @@ fn test_add_to_register() {
                     );
                     assert_eq!(state.program_counter, 0x202);
                 },
-            )
+            );
         }
     }
 }
@@ -256,7 +256,7 @@ fn test_set_register_to_f_of_registers(base_instruction: u16, f: fn(u8, u8) -> (
 
                     assert_eq!(state.program_counter, 0x202);
                 },
-            )
+            );
         }
     }
 }
@@ -290,7 +290,7 @@ fn test_skip_if_reg_not_equal() {
 
 #[test]
 fn test_set_index() {
-    for value in 0x0..0xFFF {
+    for value in 0x0..=0xFFF {
         let instruction = 0xA000 as u16 | value as u16;
         do_cycle(
             instruction,
@@ -307,7 +307,7 @@ fn test_set_index() {
 
 #[test]
 fn test_set_program_counter() {
-    for value in 0x0..0xFFF {
+    for value in 0x0..=0xFFF {
         let instruction = 0xB000 as u16 | value as u16;
         do_cycle(
             instruction,
@@ -322,44 +322,174 @@ fn test_set_program_counter() {
     }
 }
 
-fn test_skip_if_key(pressed : bool) {
-	let base_instruction : u16 = if pressed { 0xE09E } else { 0xE0A1 };
-	for reg in 0x0 .. 0xF {
-		let instruction = base_instruction | (reg << 8) as u16;
-		do_cycle(
-	        instruction,
-	        |state| {
-	            assert_eq!(state.program_counter, 0x200);
-	            state.registers[reg as usize] = 0x1;
-	            state.key[0x1] = pressed;
-	        },
-	        |state| {
-	            assert_eq!(state.program_counter, 0x204);
-	        },
-	    );
+fn test_skip_if_key(pressed: bool) {
+    let base_instruction: u16 = if pressed { 0xE09E } else { 0xE0A1 };
+    for reg in 0x0..=0xF {
+        let instruction = base_instruction | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[reg as usize] = 0x1;
+                state.key[0x1] = pressed;
+            },
+            |state| {
+                assert_eq!(state.program_counter, 0x204);
+            },
+        );
 
-	    do_cycle(
-	        instruction,
-	        |state| {
-	            assert_eq!(state.program_counter, 0x200);
-	            state.registers[reg as usize] = 0x1;
-	            state.key[0x1] = !pressed;
-	        },
-	        |state| {
-	            assert_eq!(state.program_counter, 0x202);
-	        },
-	    );
-	}
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[reg as usize] = 0x1;
+                state.key[0x1] = !pressed;
+            },
+            |state| {
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+    }
 }
 
 #[test]
 fn test_skip_if_key_pressed() {
-	test_skip_if_key(true);
+    test_skip_if_key(true);
 }
-
 
 #[test]
 fn test_skip_if_key_not_pressed() {
-	test_skip_if_key(false);
+    test_skip_if_key(false);
 }
 
+#[test]
+fn test_get_delay_timer() {
+    for reg in 0x0..=0xF {
+        let instruction = 0xF007 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.delay_timer = 0xAB;
+            },
+            |state| {
+                assert_eq!(state.registers[reg as usize], 0xAB);
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+    }
+}
+
+#[test]
+fn test_set_delay_timer() {
+    for reg in 0x0..=0xF {
+        let instruction = 0xF015 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[reg as usize] = 0xAB;
+            },
+            |state| {
+                assert_eq!(state.delay_timer, 0xAB);
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+    }
+}
+
+#[test]
+fn test_set_sound_timer() {
+    for reg in 0x0..=0xF {
+        let instruction = 0xF018 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.registers[reg as usize] = 0xAB;
+            },
+            |state| {
+                assert_eq!(state.sound_timer, 0xAB);
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+    }
+}
+
+#[test]
+fn test_inc_index_by_reg() {
+    for reg in 0x0..=0xF {
+        for index in 0x0..=0xFF {
+            let instruction = 0xF01E | (reg << 8) as u16;
+            do_cycle(
+                instruction,
+                |state| {
+                    assert_eq!(state.program_counter, 0x200);
+                    state.index = index;
+                    state.registers[reg as usize] = 0xAB;
+                },
+                |state| {
+                    assert_eq!(state.index, (0xAB as u16).wrapping_add(index));
+                    assert_eq!(state.program_counter, 0x202);
+                },
+            );
+        }
+    }
+}
+
+#[test]
+fn test_reg_dump_load() {
+    let mut register_values = [0; 16];
+    let mut rng = thread_rng();
+    for i in 0x0..=0xF {
+        register_values[i] = rng.gen_range(0, 255);
+    }
+    for reg in 0x0..=0xF {
+        let instruction = 0xF055 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                for r in 0x0..=reg {
+                    state.registers[r] = register_values[r]
+                }
+                state.index = 0x400;
+            },
+            |state| {
+                for r in 0x0..=0xF {
+                    if r <= reg {
+                        assert_eq!(
+                            state.memory[((state.index + r as u16) % 4096) as usize],
+                            register_values[r]
+                        );
+                    } else {
+                        assert_eq!(state.memory[((state.index + r as u16) % 4096) as usize], 0);
+                    }
+                }
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+
+        let instruction = 0xF065 | (reg << 8) as u16;
+        do_cycle(
+            instruction,
+            |state| {
+                assert_eq!(state.program_counter, 0x200);
+                state.index = 0x400;
+                for r in 0x0..=0xF {
+                    state.memory[((state.index + r as u16) % 4096) as usize] = register_values[r];
+                }
+            },
+            |state| {
+                for r in 0x0..=0xF {
+                    if r <= reg {
+                        assert_eq!(state.registers[r], register_values[r]);
+                    } else {
+                        assert_eq!(state.registers[r], 0);
+                    }
+                }
+                assert_eq!(state.program_counter, 0x202);
+            },
+        );
+    }
+}
