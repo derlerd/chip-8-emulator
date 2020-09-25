@@ -44,6 +44,8 @@ pub struct Chip8 {
 }
 
 impl Chip for Chip8 {
+    type PinAddress = u8;
+
     fn cycle(self) -> Self {
         let opcode = self.next_instruction();
         let chip = opcode.execute(self);
@@ -51,8 +53,19 @@ impl Chip for Chip8 {
         chip
     }
 
-    fn get_gfx(&self) -> [u8; 64 * 32] {
-        [0; 64 * 32]
+    fn get_gfx(&self) -> [bool; 64 * 32] {
+        self.gfx
+    }
+
+    fn set_io_pin(&mut self, pin: u8, value: bool) {
+        assert!(pin & 0x0F == pin);
+        self.key[pin as usize] = value;
+    }
+
+    fn reset_io_pins(&mut self) {
+        for i in 0..16 {
+            self.key[i] = false;
+        }
     }
 
     fn set_memory_byte(&mut self, byte: u8, index: usize) {
