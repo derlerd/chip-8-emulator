@@ -5,7 +5,7 @@ use crate::chip::Chip;
 #[cfg(test)]
 mod tests;
 
-const CHIP8_CHARSET_OFFSET: u16 = 0x00; 
+const CHIP8_CHARSET_OFFSET: u16 = 0x50;
 
 const CHIP8_CHARSET_LEN: u16 = 0x50;
 
@@ -197,7 +197,7 @@ impl Opcode {
             }
             0x2 => {
                 assert!(state.stack_pointer < 16, "Stack overflow");
-                increment_program_counter(&mut next_state);
+                //increment_program_counter(&mut next_state);
                 next_state.stack[next_state.stack_pointer as usize] = next_state.program_counter;
                 next_state.stack_pointer = next_state.stack_pointer + 1;
                 next_state.program_counter = self.address();
