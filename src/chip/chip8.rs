@@ -110,11 +110,6 @@ impl Chip for Chip8 {
             self.key[i] = false;
         }
     }
-
-    fn set_memory_byte(&mut self, byte: u8, index: u16) {
-        assert!(index < 4096);
-        self.memory[index as usize] = byte;
-    }
 }
 
 impl Chip8 {
@@ -145,6 +140,11 @@ impl Chip8 {
             self.memory[self.program_counter as usize],
             self.memory[(self.program_counter + 1) as usize],
         ])
+    }
+
+    fn set_memory_byte(&mut self, byte: u8, index: u16) {
+        assert!(index < 4096);
+        self.memory[index as usize] = byte;
     }
 }
 

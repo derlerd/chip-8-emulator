@@ -25,5 +25,4 @@ pub trait Chip {
     fn read_output_pins(&self) -> [bool; 64 * 32];
     fn set_input_pin(&mut self, pin: Self::PinAddress, value: bool);
     fn reset_input_pins(&mut self);
-    fn set_memory_byte(&mut self, byte: u8, index: Self::MemoryAddress);
 }
