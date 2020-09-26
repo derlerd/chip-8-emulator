@@ -110,6 +110,11 @@ fn main() {
         let md = fs::metadata(&filename).unwrap();
         let mut buffer = vec![0; md.len() as usize];
         file.read(&mut buffer).unwrap();
+    	
+    	load_program(
+        &mut chip8,
+        &buffer,
+    );
     */
     load_program(
         &mut chip8,

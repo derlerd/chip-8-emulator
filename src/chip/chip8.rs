@@ -77,7 +77,7 @@ impl Chip for Chip8 {
 impl Chip8 {
     pub fn new() -> Self {
         let mut memory = [0; 4096];
-        for i in 0..CHIP8_CHARSET_LEN - 1 {
+        for i in 0..CHIP8_CHARSET_LEN {
             memory[(i + CHIP8_CHARSET_OFFSET) as usize] = CHIP8_CHARSET[i as usize];
         }
 
