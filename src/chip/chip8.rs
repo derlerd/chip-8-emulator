@@ -5,9 +5,9 @@ use crate::chip::Chip;
 #[cfg(test)]
 mod tests;
 
-const CHIP8_CHARSET_OFFSET: u16 = 0x50; // 80
+const CHIP8_CHARSET_OFFSET: u16 = 0x00; 
 
-const CHIP8_CHARSET_LEN: u16 = 0x50; // 80
+const CHIP8_CHARSET_LEN: u16 = 0x50;
 
 const CHIP8_CHARSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -307,13 +307,12 @@ impl Opcode {
                         let pixel_bit = (pixel_byte & pixel_mask) > 0;
 
                         let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
+
                         if pixel_bit {
-                            next_state.gfx[pixel_pos] = true;
-                        } else {
                             if next_state.gfx[pixel_pos] {
                                 next_state.registers[0xF] = 1;
                             }
-                            next_state.gfx[pixel_pos] = false;
+                            next_state.gfx[pixel_pos] ^= true;
                         }
 
                         x_pos += 1;
