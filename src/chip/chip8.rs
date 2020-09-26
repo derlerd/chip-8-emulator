@@ -100,7 +100,6 @@ impl Chip for Chip8 {
 
     fn set_input_pin(&mut self, pin: u8, value: bool) {
         assert!(pin & 0x0F == pin);
-        self.reset_input_pins();
         self.key[pin as usize] = value;
     }
 

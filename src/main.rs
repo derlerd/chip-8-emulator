@@ -11,6 +11,7 @@ use crate::chip::{chip8::Chip8, chip8::Display, Chip, ChipWithDisplayOutput};
 
 enum KeyEvent {
     Key(u8),
+    KeyRelease,
     SpeedUp,
     SlowDown,
     Quit,
@@ -24,12 +25,15 @@ struct ExecLoopIoChannels {
 }
 
 fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
-    let mut cycle_sleep = 5;
+    let mut cycle_sleep = 2;
     loop {
-        match io_channels.key_drain.recv_timeout(Duration::from_millis(1)) {
+        match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
             Ok(KeyEvent::Key(key)) => {
                 chip8.set_input_pin(key, true);
-            }
+            },
+            Ok(KeyEvent::KeyRelease) => {
+				chip8.reset_input_pins();
+			},
             Ok(KeyEvent::Quit) => {
                 io_channels
                     .shutdown_sink
@@ -50,7 +54,6 @@ fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
 
         chip8.cycle();
         chip8.update_ui(&io_channels.gfx_sink);
-        chip8.reset_input_pins();
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }
@@ -124,6 +127,11 @@ fn main() {
             sender.send(KeyEvent::Key(*j as u8)).unwrap();
         });
     }
+
+    let sender = key_sender.clone();
+    siv.add_global_callback(' ', move |_s| {
+        sender.send(KeyEvent::KeyRelease).unwrap();
+    });
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Up, move |_s| {
