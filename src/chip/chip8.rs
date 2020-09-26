@@ -48,7 +48,16 @@ impl Chip for Chip8 {
 
     fn cycle(self) -> Self {
         let opcode = self.next_instruction();
-        let chip = opcode.execute(self);
+        let mut chip = opcode.execute(self);
+
+        if chip.delay_timer > 0 {
+            chip.delay_timer -= 1;
+        }
+
+        if chip.sound_timer > 0 {
+            // TODO let it beep
+            chip.sound_timer -= 1;
+        }
 
         chip
     }
