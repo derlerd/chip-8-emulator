@@ -62,22 +62,33 @@ fn load_program(chip8: &mut Chip8, program: &[u8]) {
 }
 
 fn execute(mut chip8: Chip8, io_channels: IoChannels) {
+    let mut cycle_sleep = 5;
     loop {
-        match io_channels.key_drain.recv_timeout(Duration::from_millis(1)) {
-            Ok(KeyEvent::Key(key)) => {
-                chip8.set_io_pin(key, true);
-            }
-            Ok(KeyEvent::Quit) => {
-                io_channels
-                    .shutdown_sink
-                    .send(())
-                    .expect("Failed to orderly shutdown.");
-                return;
-            }
-            Err(_) => {}
-        };
+        
+            match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
+                Ok(KeyEvent::Key(key)) => {
+                    chip8.set_io_pin(key, true);
+                   
+                },
+                Ok(KeyEvent::Quit) => {
+                    io_channels
+                        .shutdown_sink
+                        .send(())
+                        .expect("Failed to orderly shutdown.");
+                    return;
+                },
+                Ok(KeyEvent::SpeedUp) => {
+                	if cycle_sleep > 5 { cycle_sleep -= 5; }
+                }
+                Ok(KeyEvent::SlowDown) => {
+                	cycle_sleep += 5;
+                }
+                Err(_) => {}
+            };
+        
+
         chip8 = chip8.cycle();
-        chip8.reset_io_pins();
+
         let display = chip8.get_gfx();
         io_channels
             .gfx_sink
@@ -86,6 +97,8 @@ fn execute(mut chip8: Chip8, io_channels: IoChannels) {
                 s.add_layer(Display::new(display));
             })))
             .expect("Sending updated display failed");
+
+        std::thread::sleep(Duration::from_millis(cycle_sleep));
     }
 }
 
@@ -98,6 +111,8 @@ struct IoChannels {
 
 enum KeyEvent {
     Key(u8),
+    SpeedUp,
+    SlowDown,
     Quit,
 }
 
@@ -142,7 +157,7 @@ fn main() {
     let quit_sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Esc, move |s| {
         quit_sender.send(KeyEvent::Quit).unwrap();
-        shutdown_receiver.recv();
+        shutdown_receiver.recv().expect("Orderly shutdown failed");
         s.quit();
     });
 
@@ -164,13 +179,23 @@ fn main() {
         ('c', 0xB),
         ('v', 0xF),
     ] {
-        let left_sender = key_sender.clone();
+        let sender = key_sender.clone();
         siv.add_global_callback(*i, move |_s| {
-            left_sender.clone().send(KeyEvent::Key(*j as u8)).unwrap();
+            sender.send(KeyEvent::Key(*j as u8)).unwrap();
         });
     }
 
-    siv.add_layer(Display::new([true; 64 * 32]));
+    let sender = key_sender.clone();
+    siv.add_global_callback(cursive::event::Key::Up, move |_s| {
+            sender.send(KeyEvent::SpeedUp).unwrap();
+    });
+
+    let sender = key_sender.clone();
+    siv.add_global_callback(cursive::event::Key::Down, move |_s| {
+            sender.send(KeyEvent::SlowDown).unwrap();
+    });
+
+    siv.add_layer(Display::new([false; 64 * 32]));
 
     siv.run();
 }
