@@ -488,5 +488,4 @@ impl ChipWithDisplayOutput for Chip8 {
     fn get_display(&self) -> Display {
         Display::new(self.get_gfx())
     }
-
 }

@@ -9,7 +9,31 @@ use std::time::Duration;
 
 use crate::chip::{chip8::Chip8, chip8::Display, Chip, ChipWithDisplayOutput};
 
-fn execute(mut chip8: Chip8, io_channels: IoChannels) {
+enum KeyEvent {
+    Key(u8),
+    SpeedUp,
+    SlowDown,
+    Quit,
+}
+
+#[derive(Clone)]
+struct ExecLoopIoChannels {
+    gfx_sink: CbSink,
+    key_drain: Receiver<KeyEvent>,
+    shutdown_sink: Sender<()>,
+}
+
+fn update_ui(chip8 : &Chip8, gfx_sink : &CbSink) {
+	let display = chip8.get_display();
+	gfx_sink
+            .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
+                s.pop_layer();
+                s.add_layer(display);
+            })))
+            .expect("Sending updated display failed");
+}
+
+fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
     let mut cycle_sleep = 5;
     loop {
         match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
@@ -36,31 +60,10 @@ fn execute(mut chip8: Chip8, io_channels: IoChannels) {
 
         chip8 = chip8.cycle();
 
-        let display = chip8.get_display();
-        io_channels
-            .gfx_sink
-            .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
-                s.pop_layer();
-                s.add_layer(display);
-            })))
-            .expect("Sending updated display failed");
+        update_ui(&chip8, &io_channels.gfx_sink);
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }
-}
-
-#[derive(Clone)]
-struct IoChannels {
-    gfx_sink: CbSink,
-    key_drain: Receiver<KeyEvent>,
-    shutdown_sink: Sender<()>,
-}
-
-enum KeyEvent {
-    Key(u8),
-    SpeedUp,
-    SlowDown,
-    Quit,
 }
 
 fn load_program_from_args(chip8: &mut Chip8) {
@@ -93,7 +96,7 @@ fn main() {
     std::thread::spawn(move || {
         execute(
             chip8,
-            IoChannels {
+            ExecLoopIoChannels {
                 gfx_sink: cb_sink,
                 key_drain: key_receiver,
                 shutdown_sink: shutdown_sender,
