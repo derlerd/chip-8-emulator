@@ -1,57 +1,13 @@
 mod chip;
 
-use cursive::{
-    direction::Direction,
-    event::{Event, EventResult},
-    theme::{BaseColor, Color, ColorStyle},
-    CbSink, Printer, Vec2,
-};
+use cursive::CbSink;
 
 use std::env;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 use std::time::Duration;
 
-use crate::chip::{chip8::Chip8, Chip};
-
-struct Display {
-    pixels: [bool; 64 * 32],
-}
-
-impl Display {
-    fn new(pixels: [bool; 64 * 32]) -> Self {
-        Display { pixels }
-    }
-}
-
-impl cursive::view::View for Display {
-    fn draw(&self, printer: &Printer) {
-        printer.with_color(
-            ColorStyle::new(Color::Dark(BaseColor::Black), Color::RgbLowRes(0, 0, 0)),
-            |printer| {
-                for x in 0..64 {
-                    for y in 0..32 {
-                        if self.pixels[x + 64 * y] {
-                            printer.print((x, y), " ");
-                        }
-                    }
-                }
-            },
-        );
-    }
-
-    fn take_focus(&mut self, _: Direction) -> bool {
-        true
-    }
-
-    fn on_event(&mut self, _event: Event) -> EventResult {
-        EventResult::Ignored
-    }
-
-    fn required_size(&mut self, _: Vec2) -> Vec2 {
-        Vec2 { x: 64, y: 32 }
-    }
-}
+use crate::chip::{chip8::Chip8, chip8::Display, Chip, ChipWithDisplayOutput};
 
 fn execute(mut chip8: Chip8, io_channels: IoChannels) {
     let mut cycle_sleep = 5;
@@ -80,12 +36,12 @@ fn execute(mut chip8: Chip8, io_channels: IoChannels) {
 
         chip8 = chip8.cycle();
 
-        let display = chip8.get_gfx();
+        let display = chip8.get_display();
         io_channels
             .gfx_sink
             .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
                 s.pop_layer();
-                s.add_layer(Display::new(display));
+                s.add_layer(display);
             })))
             .expect("Sending updated display failed");
 
@@ -107,8 +63,8 @@ enum KeyEvent {
     Quit,
 }
 
-fn load_program_from_args(chip8 : &mut Chip8) {
-	let args: Vec<String> = env::args().collect();
+fn load_program_from_args(chip8: &mut Chip8) {
+    let args: Vec<String> = env::args().collect();
     match args.len() {
         1 => {
             chip8.load_program_bytes(&[
@@ -121,12 +77,12 @@ fn load_program_from_args(chip8 : &mut Chip8) {
                 .expect("Could not load program.");
         }
     };
-} 
+}
 
 fn main() {
     let mut chip8 = Chip8::new();
 
-	load_program_from_args(&mut chip8);    
+    load_program_from_args(&mut chip8);
 
     let mut siv = cursive::default();
 
@@ -186,7 +142,7 @@ fn main() {
         sender.send(KeyEvent::SlowDown).unwrap();
     });
 
-    siv.add_layer(Display::new([false; 64 * 32]));
+    siv.add_layer(Display::default());
 
     siv.run();
 }

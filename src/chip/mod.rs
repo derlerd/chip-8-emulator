@@ -1,10 +1,18 @@
 pub mod chip8;
 
+use cursive::view::View;
+
 #[derive(Debug)]
 pub enum LoadProgramError {
     CouldNotOpenFile(String),
     CouldNotReadMetadata(String),
     CouldNotReadFile(String),
+}
+
+pub trait ChipWithDisplayOutput {
+    type Display: View;
+
+    fn get_display(&self) -> Self::Display;
 }
 
 pub trait Chip {

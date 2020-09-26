@@ -1,10 +1,18 @@
 use rand::{thread_rng, Rng};
 
-use crate::chip::{Chip, LoadProgramError};
+use crate::chip::{Chip, ChipWithDisplayOutput, LoadProgramError};
 
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+
+use cursive::{
+    direction::Direction,
+    event::{Event, EventResult},
+    theme::{BaseColor, Color, ColorStyle},
+    view::View,
+    Printer, Vec2,
+};
 
 #[cfg(test)]
 mod tests;
@@ -427,4 +435,58 @@ impl Opcode {
         };
         next_state
     }
+}
+
+pub struct Display {
+    pixels: [bool; 64 * 32],
+}
+
+impl Display {
+    pub fn new(pixels: [bool; 64 * 32]) -> Self {
+        Display { pixels }
+    }
+}
+
+impl Default for Display {
+    fn default() -> Self {
+        Self::new([false; 64 * 32])
+    }
+}
+
+impl View for Display {
+    fn draw(&self, printer: &Printer) {
+        printer.with_color(
+            ColorStyle::new(Color::Dark(BaseColor::Black), Color::RgbLowRes(0, 0, 0)),
+            |printer| {
+                for x in 0..64 {
+                    for y in 0..32 {
+                        if self.pixels[x + 64 * y] {
+                            printer.print((x, y), " ");
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    fn take_focus(&mut self, _: Direction) -> bool {
+        true
+    }
+
+    fn on_event(&mut self, _event: Event) -> EventResult {
+        EventResult::Ignored
+    }
+
+    fn required_size(&mut self, _: Vec2) -> Vec2 {
+        Vec2 { x: 64, y: 32 }
+    }
+}
+
+impl ChipWithDisplayOutput for Chip8 {
+    type Display = Display;
+
+    fn get_display(&self) -> Display {
+        Display::new(self.get_gfx())
+    }
+
 }
