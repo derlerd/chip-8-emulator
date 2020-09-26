@@ -95,17 +95,17 @@ impl Chip for Chip8 {
         chip
     }
 
-    fn get_gfx(&self) -> [bool; 64 * 32] {
+    fn read_output_pins(&self) -> [bool; 64 * 32] {
         self.gfx
     }
 
-    fn set_io_pin(&mut self, pin: u8, value: bool) {
+    fn set_input_pin(&mut self, pin: u8, value: bool) {
         assert!(pin & 0x0F == pin);
-        self.reset_io_pins();
+        self.reset_input_pins();
         self.key[pin as usize] = value;
     }
 
-    fn reset_io_pins(&mut self) {
+    fn reset_input_pins(&mut self) {
         for i in 0..16 {
             self.key[i] = false;
         }
@@ -486,6 +486,6 @@ impl ChipWithDisplayOutput for Chip8 {
     type Display = Display;
 
     fn get_display(&self) -> Display {
-        Display::new(self.get_gfx())
+        Display::new(self.read_output_pins())
     }
 }

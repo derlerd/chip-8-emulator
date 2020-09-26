@@ -22,8 +22,8 @@ pub trait Chip {
     fn load_program(&mut self, path: &str) -> Result<usize, LoadProgramError>;
     fn load_program_bytes(&mut self, program: &[u8]);
     fn cycle(self) -> Self;
-    fn get_gfx(&self) -> [bool; 64 * 32];
-    fn set_io_pin(&mut self, pin: Self::PinAddress, value: bool);
-    fn reset_io_pins(&mut self);
+    fn read_output_pins(&self) -> [bool; 64 * 32];
+    fn set_input_pin(&mut self, pin: Self::PinAddress, value: bool);
+    fn reset_input_pins(&mut self);
     fn set_memory_byte(&mut self, byte: u8, index: Self::MemoryAddress);
 }

@@ -38,7 +38,7 @@ fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
     loop {
         match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
             Ok(KeyEvent::Key(key)) => {
-                chip8.set_io_pin(key, true);
+                chip8.set_input_pin(key, true);
             }
             Ok(KeyEvent::Quit) => {
                 io_channels
