@@ -25,15 +25,15 @@ struct ExecLoopIoChannels {
 }
 
 fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
-    let mut cycle_sleep = 2;
+    let mut cycle_sleep = 1;
     loop {
         match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
             Ok(KeyEvent::Key(key)) => {
                 chip8.set_input_pin(key, true);
-            },
+            }
             Ok(KeyEvent::KeyRelease) => {
-				chip8.reset_input_pins();
-			},
+                chip8.reset_input_pins();
+            }
             Ok(KeyEvent::Quit) => {
                 io_channels
                     .shutdown_sink

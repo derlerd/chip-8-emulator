@@ -452,7 +452,7 @@ fn test_set_delay_timer() {
                 state.registers[reg as usize] = 0xAB;
             },
             |state| {
-                assert_eq!(state.delay_timer, 0xAA);
+                assert_eq!(state.delay_timer, 0xAB);
                 assert_eq!(state.program_counter, 0x202);
             },
         );
@@ -470,7 +470,7 @@ fn test_set_sound_timer() {
                 state.registers[reg as usize] = 0xAB;
             },
             |state| {
-                assert_eq!(state.sound_timer, 0xAA);
+                assert_eq!(state.sound_timer, 0xAB);
                 assert_eq!(state.program_counter, 0x202);
             },
         );

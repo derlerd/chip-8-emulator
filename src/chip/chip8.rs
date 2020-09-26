@@ -17,9 +17,11 @@ use cursive::{
 #[cfg(test)]
 mod tests;
 
-const CHIP8_CHARSET_OFFSET: u16 = 0x50;
+const CHIP8_CYCLES_PER_TIMER_DEC: u8 = 10;
 
-const CHIP8_CHARSET_LEN: u16 = 0x50;
+const CHIP8_CHARSET_OFFSET: u16 = 0;
+
+const CHIP8_CHARSET_LEN: u16 = 80;
 
 const CHIP8_CHARSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -53,6 +55,8 @@ pub struct Chip8 {
     stack: [u16; 16],
     stack_pointer: u16,
     key: [bool; 16],
+    draw: bool,
+    cycles_since_timer_dec: u8,
 }
 
 impl Chip for Chip8 {
@@ -84,13 +88,19 @@ impl Chip for Chip8 {
         let mut state = self;
         opcode.execute(&mut state);
 
-        if state.delay_timer > 0 {
-            state.delay_timer -= 1;
-        }
+        state.cycles_since_timer_dec += 1;
 
-        if state.sound_timer > 0 {
-            // TODO let it beep
-            state.sound_timer -= 1;
+        if state.cycles_since_timer_dec % CHIP8_CYCLES_PER_TIMER_DEC == 0 {
+            if state.delay_timer > 0 {
+                state.delay_timer -= 1;
+            }
+
+            if state.sound_timer > 0 {
+                // TODO let it beep
+                state.sound_timer -= 1;
+            }
+
+            state.cycles_since_timer_dec = 0;
         }
     }
 
@@ -129,6 +139,8 @@ impl Chip8 {
             stack: [0; 16],
             stack_pointer: 0,
             key: [false; 16],
+            draw: false,
+            cycles_since_timer_dec: 0,
         }
     }
 
@@ -215,8 +227,7 @@ impl Opcode {
                     }
                     0x0EE => {
                         assert!(state.stack_pointer > 0, "Stack underflow");
-                        state.program_counter =
-                            state.stack[(state.stack_pointer - 1) as usize];
+                        state.program_counter = state.stack[(state.stack_pointer - 1) as usize];
                         state.stack_pointer = state.stack_pointer - 1;
                         increment_program_counter(&mut state);
                     }
@@ -262,8 +273,7 @@ impl Opcode {
             }
             0x7 => {
                 let (reg, value) = self.reg_and_value();
-                state.registers[reg as usize] =
-                    state.registers[reg as usize].wrapping_add(value);
+                state.registers[reg as usize] = state.registers[reg as usize].wrapping_add(value);
                 increment_program_counter(&mut state);
             }
             0x8 => {
@@ -328,8 +338,7 @@ impl Opcode {
 
                 state.registers[0xF] = 0;
                 for y_pos in 0..n {
-                    let pixel_byte =
-                        state.memory[((state.index + y_pos as u16) % 4096) as usize];
+                    let pixel_byte = state.memory[((state.index + y_pos as u16) % 4096) as usize];
 
                     let mut x_pos = 0;
                     let mut pixel_mask = 0x80;
@@ -338,6 +347,10 @@ impl Opcode {
                         let pixel_bit = (pixel_byte & pixel_mask) > 0;
 
                         let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
+
+                        if pixel_bit != state.gfx[pixel_pos] {
+                            state.draw = true;
+                        }
 
                         if pixel_bit {
                             if state.gfx[pixel_pos] {
@@ -420,8 +433,8 @@ impl Opcode {
                     }
                     0x65 => {
                         for reg in 0x0..=reg {
-                            state.registers[reg as usize] = state.memory
-                                [((state.index + reg as u16) % 4096) as usize];
+                            state.registers[reg as usize] =
+                                state.memory[((state.index + reg as u16) % 4096) as usize];
                         }
                     }
                     _ => unimplemented!("Unsupported opcode"),
@@ -485,7 +498,10 @@ impl ChipWithDisplayOutput for Chip8 {
         Display::new(self.read_output_pins())
     }
 
-    fn update_ui(&self, gfx_sink: &CbSink) {
+    fn update_ui(&mut self, gfx_sink: &CbSink) {
+        if !self.draw {
+            return;
+        }
         let display = self.get_display();
         gfx_sink
             .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
@@ -493,5 +509,6 @@ impl ChipWithDisplayOutput for Chip8 {
                 s.add_layer(display);
             })))
             .expect("Sending updated display failed");
+        self.draw = false;
     }
 }
