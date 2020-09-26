@@ -56,28 +56,27 @@ impl cursive::view::View for Display {
 fn execute(mut chip8: Chip8, io_channels: IoChannels) {
     let mut cycle_sleep = 5;
     loop {
-        
-            match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
-                Ok(KeyEvent::Key(key)) => {
-                    chip8.set_io_pin(key, true);
-                   
-                },
-                Ok(KeyEvent::Quit) => {
-                    io_channels
-                        .shutdown_sink
-                        .send(())
-                        .expect("Failed to orderly shutdown.");
-                    return;
-                },
-                Ok(KeyEvent::SpeedUp) => {
-                	if cycle_sleep > 5 { cycle_sleep -= 5; }
+        match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
+            Ok(KeyEvent::Key(key)) => {
+                chip8.set_io_pin(key, true);
+            }
+            Ok(KeyEvent::Quit) => {
+                io_channels
+                    .shutdown_sink
+                    .send(())
+                    .expect("Failed to orderly shutdown.");
+                return;
+            }
+            Ok(KeyEvent::SpeedUp) => {
+                if cycle_sleep > 5 {
+                    cycle_sleep -= 5;
                 }
-                Ok(KeyEvent::SlowDown) => {
-                	cycle_sleep += 5;
-                }
-                Err(_) => {}
-            };
-        
+            }
+            Ok(KeyEvent::SlowDown) => {
+                cycle_sleep += 5;
+            }
+            Err(_) => {}
+        };
 
         chip8 = chip8.cycle();
 
@@ -108,30 +107,32 @@ enum KeyEvent {
     Quit,
 }
 
-fn main() {
+fn load_program_from_args(chip8 : &mut Chip8) {
 	let args: Vec<String> = env::args().collect();
+    match args.len() {
+        1 => {
+            chip8.load_program_bytes(&[
+                0x63, 0, 0x64, 0, 0xF0, 0x0A, 0xF0, 0x29, 0xD3, 0x45, 0x12, 0x02,
+            ]);
+        }
+        _ => {
+            chip8
+                .load_program(&args[1])
+                .expect("Could not load program.");
+        }
+    };
+} 
 
-	let path = match args.len() {
-		1 => return,
-		_ => &args[1],
-	};
+fn main() {
+    let mut chip8 = Chip8::new();
 
-	let mut chip8 = Chip8::new();
-    
-    chip8.load_program(path).expect("Could not load program.");
-	
-	/*
-    chip8.load_program_bytes(
-        &[0x63, 0, 0x64, 0, 0xF0, 0x0A, 0xF0, 0x29, 0xD3, 0x45, 0x12, 0x02],
-    );
-    */
-
-    let (key_sender, key_receiver) = bounded::<KeyEvent>(10);
-    let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
+	load_program_from_args(&mut chip8);    
 
     let mut siv = cursive::default();
 
     let cb_sink = siv.cb_sink().clone();
+    let (key_sender, key_receiver) = bounded::<KeyEvent>(10);
+    let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
 
     std::thread::spawn(move || {
         execute(
@@ -144,9 +145,9 @@ fn main() {
         );
     });
 
-    let quit_sender = key_sender.clone();
+    let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Esc, move |s| {
-        quit_sender.send(KeyEvent::Quit).unwrap();
+        sender.send(KeyEvent::Quit).unwrap();
         shutdown_receiver.recv().expect("Orderly shutdown failed");
         s.quit();
     });
@@ -177,12 +178,12 @@ fn main() {
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Up, move |_s| {
-            sender.send(KeyEvent::SpeedUp).unwrap();
+        sender.send(KeyEvent::SpeedUp).unwrap();
     });
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Down, move |_s| {
-            sender.send(KeyEvent::SlowDown).unwrap();
+        sender.send(KeyEvent::SlowDown).unwrap();
     });
 
     siv.add_layer(Display::new([false; 64 * 32]));
