@@ -1,6 +1,10 @@
 use rand::{thread_rng, Rng};
 
-use crate::chip::Chip;
+use crate::chip::{Chip, LoadProgramError};
+
+use std::fs;
+use std::fs::File;
+use std::io::Read;
 
 #[cfg(test)]
 mod tests;
@@ -45,6 +49,24 @@ pub struct Chip8 {
 
 impl Chip for Chip8 {
     type PinAddress = u8;
+    type MemoryAddress = u16;
+
+    fn load_program(&mut self, path : &str) -> Result<usize, LoadProgramError> {
+        let mut file = File::open(path).map_err(|_| LoadProgramError::CouldNotOpenFile(path.to_string()))?;
+        let md = fs::metadata(path).map_err(|_| LoadProgramError::CouldNotReadMetadata(path.to_string()))?;
+        let mut buffer = vec![0; md.len() as usize];
+        file.read(&mut buffer).map_err(|_| LoadProgramError::CouldNotReadFile(path.to_string()))?;
+
+        self.load_program_bytes(&buffer); 
+
+        Ok(md.len() as usize)
+    }
+
+    fn load_program_bytes(&mut self, program: &[u8]) {
+        for i in 0..program.len() {
+            self.set_memory_byte(program[i], (0x200 + i) as u16);
+        }
+    }
 
     fn cycle(self) -> Self {
         let opcode = self.next_instruction();
@@ -68,6 +90,7 @@ impl Chip for Chip8 {
 
     fn set_io_pin(&mut self, pin: u8, value: bool) {
         assert!(pin & 0x0F == pin);
+        self.reset_io_pins();
         self.key[pin as usize] = value;
     }
 
@@ -77,9 +100,9 @@ impl Chip for Chip8 {
         }
     }
 
-    fn set_memory_byte(&mut self, byte: u8, index: usize) {
+    fn set_memory_byte(&mut self, byte: u8, index: u16) {
         assert!(index < 4096);
-        self.memory[index] = byte;
+        self.memory[index as usize] = byte;
     }
 }
 

@@ -7,12 +7,10 @@ use cursive::{
     CbSink, Printer, Vec2,
 };
 
+use std::env;
+
 use crossbeam_channel::{bounded, Receiver, Sender};
 use std::time::Duration;
-
-use std::fs;
-use std::fs::File;
-use std::io::Read;
 
 use crate::chip::{chip8::Chip8, Chip};
 
@@ -52,12 +50,6 @@ impl cursive::view::View for Display {
 
     fn required_size(&mut self, _: Vec2) -> Vec2 {
         Vec2 { x: 64, y: 32 }
-    }
-}
-
-fn load_program(chip8: &mut Chip8, program: &[u8]) {
-    for i in 0..program.len() {
-        chip8.set_memory_byte(program[i], 0x200 + i);
     }
 }
 
@@ -117,24 +109,22 @@ enum KeyEvent {
 }
 
 fn main() {
-    let mut chip8 = Chip8::new();
+	let args: Vec<String> = env::args().collect();
 
-    /*
-        let filename = "space-invaders.ch8";
-        let mut file = File::open(&filename).unwrap();
-        let md = fs::metadata(&filename).unwrap();
-        let mut buffer = vec![0; md.len() as usize];
-        file.read(&mut buffer).unwrap();
-    	
-    	load_program(
-        &mut chip8,
-        &buffer,
+	let path = match args.len() {
+		1 => return,
+		_ => &args[1],
+	};
+
+	let mut chip8 = Chip8::new();
+    
+    chip8.load_program(path).expect("Could not load program.");
+	
+	/*
+    chip8.load_program_bytes(
+        &[0x63, 0, 0x64, 0, 0xF0, 0x0A, 0xF0, 0x29, 0xD3, 0x45, 0x12, 0x02],
     );
     */
-    load_program(
-        &mut chip8,
-        &[0xF0, 0x0A, 0xF0, 0x29, 0xD3, 0x35, 0x12, 0x00],
-    );
 
     let (key_sender, key_receiver) = bounded::<KeyEvent>(10);
     let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
