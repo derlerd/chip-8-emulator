@@ -26,7 +26,7 @@ struct ExecLoopIoChannels {
 fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
     let mut cycle_sleep = 5;
     loop {
-        match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
+        match io_channels.key_drain.recv_timeout(Duration::from_millis(1)) {
             Ok(KeyEvent::Key(key)) => {
                 chip8.set_input_pin(key, true);
             }
@@ -48,9 +48,9 @@ fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
             Err(_) => {}
         };
 
-        chip8 = chip8.cycle();
-
+        chip8.cycle();
         chip8.update_ui(&io_channels.gfx_sink);
+        chip8.reset_input_pins();
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }

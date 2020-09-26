@@ -13,11 +13,11 @@ fn prepare_state_with_single_instruction(instruction: u16) -> Chip8 {
 }
 
 fn do_cycle(instruction: u16, before_cycle: impl Fn(&mut Chip8), after_cycle: impl Fn(&mut Chip8)) {
-    let mut before = prepare_state_with_single_instruction(instruction);
+    let mut state = prepare_state_with_single_instruction(instruction);
 
-    before_cycle(&mut before);
-    let mut after = before.cycle();
-    after_cycle(&mut after);
+    before_cycle(&mut state);
+    state.cycle();
+    after_cycle(&mut state);
 }
 
 #[test]
