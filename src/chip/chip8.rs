@@ -11,7 +11,7 @@ use cursive::{
     event::{Event, EventResult},
     theme::{BaseColor, Color, ColorStyle},
     view::View,
-    Printer, Vec2,
+    CbSink, Printer, Vec2,
 };
 
 #[cfg(test)]
@@ -487,5 +487,15 @@ impl ChipWithDisplayOutput for Chip8 {
 
     fn get_display(&self) -> Display {
         Display::new(self.read_output_pins())
+    }
+
+    fn update_ui(&self, gfx_sink: &CbSink) {
+        let display = self.get_display();
+        gfx_sink
+            .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
+                s.pop_layer();
+                s.add_layer(display);
+            })))
+            .expect("Sending updated display failed");
     }
 }

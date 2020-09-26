@@ -23,16 +23,6 @@ struct ExecLoopIoChannels {
     shutdown_sink: Sender<()>,
 }
 
-fn update_ui(chip8 : &Chip8, gfx_sink : &CbSink) {
-	let display = chip8.get_display();
-	gfx_sink
-            .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
-                s.pop_layer();
-                s.add_layer(display);
-            })))
-            .expect("Sending updated display failed");
-}
-
 fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
     let mut cycle_sleep = 5;
     loop {
@@ -60,7 +50,7 @@ fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
 
         chip8 = chip8.cycle();
 
-        update_ui(&chip8, &io_channels.gfx_sink);
+        chip8.update_ui(&io_channels.gfx_sink);
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }

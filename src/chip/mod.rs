@@ -1,6 +1,6 @@
 pub mod chip8;
 
-use cursive::view::View;
+use cursive::{ CbSink, view::View };
 
 #[derive(Debug)]
 pub enum LoadProgramError {
@@ -13,6 +13,7 @@ pub trait ChipWithDisplayOutput {
     type Display: View;
 
     fn get_display(&self) -> Self::Display;
+    fn update_ui(&self, gfx_sink : &CbSink);
 }
 
 pub trait Chip {
