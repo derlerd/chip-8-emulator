@@ -48,25 +48,33 @@ impl Opcode {
     }
 
     pub fn execute(self, mut state: &mut Chip8) {
-        // We can safely unwrap the converted instructions below as we know
-        // that the instruction class will map the respective instruction.
+        fn execute<T>(opcode : Opcode, mut state : &mut Chip8) 
+        where 
+            T : ExecutableOpcode + TryFrom<Opcode>,
+            <T as TryFrom<Opcode>>::Error: std::fmt::Debug
+        {
+            // We can safely unwrap the converted instructions below as we know
+            // that the instruction class will map the respective instruction.
+            T::try_from(opcode).unwrap().execute(&mut state);
+        }
+        
         match self.instruction_class {
-            0x0 => SysInstruction::try_from(self).unwrap().execute(&mut state),
-            0x1 => JmpInstruction::try_from(self).unwrap().execute(&mut state),
-            0x2 => CallInstruction::try_from(self).unwrap().execute(&mut state),
-            0x3 => SeInstruction::try_from(self).unwrap().execute(&mut state),
-            0x4 => SneInstruction::try_from(self).unwrap().execute(&mut state),
-            0x5 => SreInstruction::try_from(self).unwrap().execute(&mut state),
-            0x6 => LdrInstruction::try_from(self).unwrap().execute(&mut state),
-            0x7 => AddInstruction::try_from(self).unwrap().execute(&mut state),
-            0x8 => RegInstruction::try_from(self).unwrap().execute(&mut state),
-            0x9 => SrneInstruction::try_from(self).unwrap().execute(&mut state),
-            0xA => LdInstruction::try_from(self).unwrap().execute(&mut state),
-            0xB => JmprInstruction::try_from(self).unwrap().execute(&mut state),
-            0xC => RndInstruction::try_from(self).unwrap().execute(&mut state),
-            0xD => DrwInstruction::try_from(self).unwrap().execute(&mut state),
-            0xE => SkInstruction::try_from(self).unwrap().execute(&mut state),
-            0xF => LduInstruction::try_from(self).unwrap().execute(&mut state),
+            0x0 => execute::<SysInstruction>(self, &mut state),
+            0x1 => execute::<JmpInstruction>(self, &mut state),
+            0x2 => execute::<CallInstruction>(self, &mut state),
+            0x3 => execute::<SeInstruction>(self, &mut state),
+            0x4 => execute::<SneInstruction>(self, &mut state),
+            0x5 => execute::<SreInstruction>(self, &mut state),
+            0x6 => execute::<LdrInstruction>(self, &mut state),
+            0x7 => execute::<AddInstruction>(self, &mut state),
+            0x8 => execute::<RegInstruction>(self, &mut state),
+            0x9 => execute::<SrneInstruction>(self, &mut state),
+            0xA => execute::<LdInstruction>(self, &mut state),
+            0xB => execute::<JmprInstruction>(self, &mut state),
+            0xC => execute::<RndInstruction>(self, &mut state),
+            0xD => execute::<DrwInstruction>(self, &mut state),
+            0xE => execute::<SkInstruction>(self, &mut state),
+            0xF => execute::<LduInstruction>(self, &mut state),
             _ => unimplemented!("Unsupported opcode"),
         };
     }
