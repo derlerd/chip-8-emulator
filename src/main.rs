@@ -7,7 +7,7 @@ use std::env;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use std::time::Duration;
 
-use crate::chip::{chip8::Chip8, chip8::Display, Chip, ChipWithDisplayOutput};
+use crate::chip::{chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay};
 
 enum KeyEvent {
     Key(u8),

@@ -9,10 +9,9 @@ pub enum LoadProgramError {
     CouldNotReadFile(String),
 }
 
-pub trait ChipWithDisplayOutput {
+pub trait ChipWithCursiveDisplay {
     type Display: View;
 
-    fn get_display(&self) -> Self::Display;
     fn update_ui(&mut self, gfx_sink: &CbSink);
 }
 

@@ -1,4 +1,5 @@
 mod constants;
+pub mod cursive_display;
 mod opcodes;
 mod util;
 
@@ -9,20 +10,12 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 
-use cursive::{
-    direction::Direction,
-    event::{Event, EventResult},
-    theme::{BaseColor, Color, ColorStyle},
-    view::View,
-    CbSink, Printer, Vec2,
-};
-
 use crate::chip::{
     chip8::constants::{
         CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_TIMER_RESOLUTION,
     },
     chip8::opcodes::Opcode,
-    Chip, ChipWithDisplayOutput, LoadProgramError,
+    Chip, LoadProgramError,
 };
 
 #[derive(Clone)]
@@ -138,72 +131,5 @@ impl Chip8 {
     fn set_memory_byte(&mut self, byte: u8, index: u16) {
         assert!(index < 4096);
         self.memory[index as usize] = byte;
-    }
-}
-
-pub struct Display {
-    pixels: [bool; 64 * 32],
-}
-
-impl Display {
-    pub fn new(pixels: [bool; 64 * 32]) -> Self {
-        Display { pixels }
-    }
-}
-
-impl Default for Display {
-    fn default() -> Self {
-        Self::new([false; 64 * 32])
-    }
-}
-
-impl View for Display {
-    fn draw(&self, printer: &Printer) {
-        printer.with_color(
-            ColorStyle::new(Color::Dark(BaseColor::Black), Color::RgbLowRes(0, 0, 0)),
-            |printer| {
-                for x in 0..64 {
-                    for y in 0..32 {
-                        if self.pixels[x + 64 * y] {
-                            printer.print((x, y), " ");
-                        }
-                    }
-                }
-            },
-        );
-    }
-
-    fn take_focus(&mut self, _: Direction) -> bool {
-        true
-    }
-
-    fn on_event(&mut self, _event: Event) -> EventResult {
-        EventResult::Ignored
-    }
-
-    fn required_size(&mut self, _: Vec2) -> Vec2 {
-        Vec2 { x: 64, y: 32 }
-    }
-}
-
-impl ChipWithDisplayOutput for Chip8 {
-    type Display = Display;
-
-    fn get_display(&self) -> Display {
-        Display::new(self.read_output_pins())
-    }
-
-    fn update_ui(&mut self, gfx_sink: &CbSink) {
-        if !self.draw {
-            return;
-        }
-        let display = self.get_display();
-        gfx_sink
-            .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
-                s.pop_layer();
-                s.add_layer(display);
-            })))
-            .expect("Sending updated display failed");
-        self.draw = false;
     }
 }
