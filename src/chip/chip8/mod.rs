@@ -24,7 +24,6 @@ use crate::chip::{
 };
 
 /// Represents the state of the Chip 8.
-#[derive(Clone)]
 pub struct Chip8 {
     /// 4096 bytes of main memory
     memory: [u8; 4096],
