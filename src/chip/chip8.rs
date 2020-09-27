@@ -1,4 +1,5 @@
 mod constants;
+mod util;
 
 #[cfg(test)]
 mod tests;
@@ -8,6 +9,9 @@ use rand::{thread_rng, Rng};
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+
+use core::convert::TryFrom;
+use std::marker::PhantomData;
 
 use cursive::{
     direction::Direction,
@@ -39,6 +43,450 @@ pub struct Chip8 {
     key: [bool; 16],
     draw: bool,
     cycles_since_timer_dec: u8,
+}
+
+macro_rules! implement_try_from_address_payload {
+    ($name:ty, $instruction_class:expr) => {
+        impl TryFrom<Opcode> for $name {
+            type Error = InstructionParsingError;
+
+            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
+                if opcode.instruction_class != $instruction_class {
+                    return Err(InstructionParsingError::InvalidInstructionClass(
+                        opcode.instruction_class,
+                        $instruction_class,
+                    ));
+                }
+                Ok(Self {
+                    instruction: PhantomData,
+                    address: opcode.payload.address(),
+                })
+            }
+        }
+    };
+}
+
+macro_rules! implement_try_from_reg_and_value {
+    ($name:ty, $instruction_class:expr) => {
+        impl TryFrom<Opcode> for $name {
+            type Error = InstructionParsingError;
+
+            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
+                if opcode.instruction_class != $instruction_class {
+                    return Err(InstructionParsingError::InvalidInstructionClass(
+                        opcode.instruction_class,
+                        $instruction_class,
+                    ));
+                }
+                let (reg, value) = opcode.payload.reg_and_value();
+                Ok(Self {
+                    instruction: PhantomData,
+                    reg,
+                    value,
+                })
+            }
+        }
+    };
+}
+
+macro_rules! implement_try_from_operands {
+    ($name:ty, $instruction_class:expr) => {
+        impl TryFrom<Opcode> for $name {
+            type Error = InstructionParsingError;
+
+            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
+                if opcode.instruction_class != $instruction_class {
+                    return Err(InstructionParsingError::InvalidInstructionClass(
+                        opcode.instruction_class,
+                        $instruction_class,
+                    ));
+                }
+                let (op1, op2, op3) = opcode.payload.operands();
+                Ok(Self {
+                    instruction: PhantomData,
+                    op1,
+                    op2,
+                    op3,
+                })
+            }
+        }
+    };
+}
+
+#[derive(Debug)]
+enum InstructionParsingError {
+    InvalidInstructionClass(u8, u8),
+}
+
+trait Executable {
+    fn execute(self, state: &mut Chip8);
+}
+
+struct InstructionWithAddress<T> {
+    instruction: PhantomData<T>,
+    address: u16,
+}
+
+struct InstructionWithOperands<T> {
+    instruction: PhantomData<T>,
+    op1: u8,
+    op2: u8,
+    op3: u8,
+}
+
+struct InstructionWithRegAndValue<T> {
+    instruction: PhantomData<T>,
+    reg: u8,
+    value: u8,
+}
+
+struct Jmp;
+
+type JmpInstruction = InstructionWithAddress<Jmp>;
+
+implement_try_from_address_payload!(JmpInstruction, 0x1);
+
+impl Executable for JmpInstruction {
+    fn execute(self, state: &mut Chip8) {
+        state.program_counter = self.address;
+    }
+}
+
+struct Call;
+
+type CallInstruction = InstructionWithAddress<Call>;
+
+implement_try_from_address_payload!(CallInstruction, 0x2);
+
+impl Executable for CallInstruction {
+    fn execute(self, state: &mut Chip8) {
+        assert!(state.stack_pointer < 16, "Stack overflow");
+        state.stack[state.stack_pointer as usize] = state.program_counter;
+        state.stack_pointer = state.stack_pointer + 1;
+        state.program_counter = self.address;
+    }
+}
+
+struct Se;
+
+type SeInstruction = InstructionWithRegAndValue<Se>;
+
+implement_try_from_reg_and_value!(SeInstruction, 0x3);
+
+impl Executable for SeInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        util::conditional_skip(&self, &mut state, |instruction, state| {
+            state.registers[instruction.reg as usize] == instruction.value
+        });
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Sne;
+
+type SneInstruction = InstructionWithRegAndValue<Sne>;
+
+implement_try_from_reg_and_value!(SneInstruction, 0x4);
+
+impl Executable for SneInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        util::conditional_skip(&self, &mut state, |instruction, state| {
+            state.registers[instruction.reg as usize] != instruction.value
+        });
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Sre;
+
+type SreInstruction = InstructionWithOperands<Sre>;
+
+implement_try_from_operands!(SreInstruction, 0x5);
+
+impl Executable for SreInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        util::conditional_skip(&self, &mut state, |instruction, state| {
+            assert_eq!(instruction.op3, 0, "Unsupported opcode");
+            state.registers[instruction.op1 as usize] == state.registers[instruction.op2 as usize]
+        });
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Ldr;
+
+type LdrInstruction = InstructionWithRegAndValue<Ldr>;
+
+implement_try_from_reg_and_value!(LdrInstruction, 0x6);
+
+impl Executable for LdrInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        state.registers[self.reg as usize] = self.value;
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Add;
+
+type AddInstruction = InstructionWithRegAndValue<Add>;
+
+implement_try_from_reg_and_value!(AddInstruction, 0x7);
+
+impl Executable for AddInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        state.registers[self.reg as usize] =
+            state.registers[self.reg as usize].wrapping_add(self.value);
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Reg;
+
+type RegInstruction = InstructionWithOperands<Reg>;
+
+implement_try_from_operands!(RegInstruction, 0x8);
+
+impl Executable for RegInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        fn modify_registers(
+            state: &mut Chip8,
+            r1: u8,
+            r2: u8,
+            f: fn(u8, u8) -> (u8, Option<bool>),
+        ) {
+            let (val, carry) = f(state.registers[r1 as usize], state.registers[r2 as usize]);
+            state.registers[r1 as usize] = val;
+            match carry {
+                Some(true) => state.registers[0xF] = 1,
+                Some(false) => state.registers[0xF] = 0,
+                _ => {}
+            }
+        }
+
+        match self.op3 {
+            0x0 => modify_registers(&mut state, self.op1, self.op2, |_, v2| (v2, None)),
+            0x1 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 | v2, None)),
+            0x2 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 & v2, None)),
+            0x3 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 ^ v2, None)),
+            0x4 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+                let (result, overflow) = v1.overflowing_add(v2);
+                (result, Some(overflow))
+            }),
+            0x5 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+                let (result, overflow) = v1.overflowing_sub(v2);
+                (result, Some(!overflow))
+            }),
+            0x6 => modify_registers(&mut state, self.op1, self.op2, |v1, _| {
+                (v1 >> 1, Some(v1 & 1 != 0))
+            }),
+            0x7 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+                let (result, overflow) = v2.overflowing_sub(v1);
+                (result, Some(!overflow))
+            }),
+            0xE => modify_registers(&mut state, self.op1, self.op2, |v1, _| {
+                (v1 << 1, Some(v1 & 0x80 != 0))
+            }),
+            _ => panic!("Unsupported opcode"),
+        };
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Srne;
+
+type SrneInstruction = InstructionWithOperands<Srne>;
+
+implement_try_from_operands!(SrneInstruction, 0x9);
+
+impl Executable for SrneInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        util::conditional_skip(&self, &mut state, |instruction, state| {
+            assert_eq!(instruction.op3, 0, "Unsupported opcode");
+            state.registers[instruction.op1 as usize] != state.registers[instruction.op2 as usize]
+        });
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Ld;
+
+type LdInstruction = InstructionWithAddress<Ld>;
+
+implement_try_from_address_payload!(LdInstruction, 0xA);
+
+impl Executable for LdInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        state.index = self.address;
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Jmpr;
+
+type JmprInstruction = InstructionWithAddress<Jmpr>;
+
+implement_try_from_address_payload!(JmprInstruction, 0xB);
+
+impl Executable for JmprInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        state.program_counter = self.address.wrapping_add(state.registers[0] as u16);
+    }
+}
+
+struct Rnd;
+
+type RndInstruction = InstructionWithRegAndValue<Rnd>;
+
+implement_try_from_reg_and_value!(RndInstruction, 0xC);
+
+impl Executable for RndInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        let mut rng = thread_rng();
+        let sample = rng.gen_range(0, 255);
+
+        state.registers[self.reg as usize] = sample as u8 & self.value;
+
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Drw;
+
+type DrwInstruction = InstructionWithOperands<Drw>;
+
+implement_try_from_operands!(DrwInstruction, 0xD);
+
+impl Executable for DrwInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        fn translate_gfx(x: u16, y: u16) -> usize {
+            ((x % 64) + ((y % 32) * 64)) as usize
+        }
+
+        let x = state.registers[self.op1 as usize];
+        let y = state.registers[self.op2 as usize];
+        let n = self.op3;
+
+        state.registers[0xF] = 0;
+        for y_pos in 0..n {
+            let pixel_byte = state.memory[((state.index + y_pos as u16) % 4096) as usize];
+
+            let mut x_pos = 0;
+            let mut pixel_mask = 0x80;
+
+            while x_pos < 8 {
+                let pixel_bit = (pixel_byte & pixel_mask) > 0;
+
+                let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
+
+                if pixel_bit != state.gfx[pixel_pos] {
+                    state.draw = true;
+                }
+
+                if pixel_bit {
+                    if state.gfx[pixel_pos] {
+                        state.registers[0xF] = 1;
+                    }
+                    state.gfx[pixel_pos] ^= true;
+                }
+
+                x_pos += 1;
+                pixel_mask >>= 1;
+            }
+        }
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Sk;
+
+type SkInstruction = InstructionWithRegAndValue<Sk>;
+
+implement_try_from_reg_and_value!(SkInstruction, 0xE);
+
+impl Executable for SkInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        let skip = match self.value {
+            0x9E => state.key[state.registers[self.reg as usize] as usize],
+            0xA1 => !state.key[state.registers[self.reg as usize] as usize],
+            _ => unimplemented!("Unsupported opcode"),
+        };
+        if skip {
+            util::increment_program_counter(&mut state);
+        }
+        util::increment_program_counter(&mut state);
+    }
+}
+
+struct Ldu;
+
+type LduInstruction = InstructionWithRegAndValue<Ldu>;
+
+implement_try_from_reg_and_value!(LduInstruction, 0xF);
+
+impl Executable for LduInstruction {
+    fn execute(self, mut state: &mut Chip8) {
+        match self.value {
+            0x07 => {
+                state.registers[self.reg as usize] = state.delay_timer;
+            }
+            0x0A => {
+                let mut key_pressed = false;
+                for i in 0x0..=0xF {
+                    if state.key[i] {
+                        state.registers[self.reg as usize] = i as u8;
+                        key_pressed = true;
+                        break;
+                    }
+                }
+
+                if !key_pressed {
+                    // if no key was pressed, we directly return without
+                    // incrementing the program counter
+                    return;
+                }
+            }
+            0x15 => {
+                state.delay_timer = state.registers[self.reg as usize];
+            }
+            0x18 => {
+                state.sound_timer = state.registers[self.reg as usize];
+            }
+            0x1E => {
+                state.index = state
+                    .index
+                    .wrapping_add(state.registers[self.reg as usize] as u16);
+            }
+            0x29 => {
+                let character: u16 = state.registers[self.reg as usize] as u16;
+                assert!(character <= 0xF);
+                state.index = CHIP8_CHARSET_OFFSET + character * 5;
+            }
+            0x33 => {
+                let mut a: u8 = state.registers[self.reg as usize];
+                state.memory[(state.index + 2) as usize] = (a % 10) as u8;
+
+                a /= 10;
+                state.memory[(state.index + 1) as usize] = (a % 10) as u8;
+
+                a /= 10;
+                state.memory[state.index as usize] = (a % 10) as u8;
+            }
+            0x55 => {
+                for reg in 0x0..=self.reg {
+                    state.memory[((state.index + reg as u16) % 4096) as usize] =
+                        state.registers[reg as usize];
+                }
+            }
+            0x65 => {
+                for reg in 0x0..=self.reg {
+                    state.registers[reg as usize] =
+                        state.memory[((state.index + reg as u16) % 4096) as usize];
+                }
+            }
+            _ => unimplemented!("Unsupported opcode"),
+        }
+        util::increment_program_counter(&mut state);
+    }
 }
 
 impl Chip for Chip8 {
@@ -176,35 +624,6 @@ impl Opcode {
     }
 
     pub fn execute(self, mut state: &mut Chip8) {
-        fn conditional_skip(opcode: &Opcode, state: &mut Chip8, f: fn(&Opcode, &Chip8) -> bool) {
-            if f(opcode, state) {
-                increment_program_counter(state);
-            }
-        }
-
-        fn increment_program_counter(state: &mut Chip8) {
-            state.program_counter = state.program_counter.wrapping_add(2);
-        }
-
-        fn modify_registers(
-            state: &mut Chip8,
-            r1: u8,
-            r2: u8,
-            f: fn(u8, u8) -> (u8, Option<bool>),
-        ) {
-            let (val, carry) = f(state.registers[r1 as usize], state.registers[r2 as usize]);
-            state.registers[r1 as usize] = val;
-            match carry {
-                Some(true) => state.registers[0xF] = 1,
-                Some(false) => state.registers[0xF] = 0,
-                _ => {}
-            }
-        }
-
-        fn translate_gfx(x: u16, y: u16) -> usize {
-            ((x % 64) + ((y % 32) * 64)) as usize
-        }
-
         match self.instruction_class {
             0x0 => {
                 let payload = self.payload.address();
@@ -217,221 +636,26 @@ impl Opcode {
                         assert!(state.stack_pointer > 0, "Stack underflow");
                         state.program_counter = state.stack[(state.stack_pointer - 1) as usize];
                         state.stack_pointer = state.stack_pointer - 1;
-                        increment_program_counter(&mut state);
+                        util::increment_program_counter(&mut state);
                     }
                     _ => panic!("Opcode not supported {:x}", payload),
                 };
             }
-            0x1 => {
-                state.program_counter = self.payload.address();
-            }
-            0x2 => {
-                assert!(state.stack_pointer < 16, "Stack overflow");
-                //increment_program_counter(&mut state);
-                state.stack[state.stack_pointer as usize] = state.program_counter;
-                state.stack_pointer = state.stack_pointer + 1;
-                state.program_counter = self.payload.address();
-            }
-            0x3 => {
-                conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg, value) = opcode.payload.reg_and_value();
-                    state.registers[reg as usize] == value
-                });
-                increment_program_counter(&mut state);
-            }
-            0x4 => {
-                conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg, value) = opcode.payload.reg_and_value();
-                    state.registers[reg as usize] != value
-                });
-                increment_program_counter(&mut state);
-            }
-            0x5 => {
-                conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.payload.operands();
-                    assert_eq!(zero, 0, "Unsupported opcode");
-                    state.registers[reg1 as usize] == state.registers[reg2 as usize]
-                });
-                increment_program_counter(&mut state);
-            }
-            0x6 => {
-                let (reg, value) = self.payload.reg_and_value();
-                state.registers[reg as usize] = value;
-                increment_program_counter(&mut state);
-            }
-            0x7 => {
-                let (reg, value) = self.payload.reg_and_value();
-                state.registers[reg as usize] = state.registers[reg as usize].wrapping_add(value);
-                increment_program_counter(&mut state);
-            }
-            0x8 => {
-                let (reg1, reg2, op) = self.payload.operands();
-                match op {
-                    0x0 => modify_registers(&mut state, reg1, reg2, |_, v2| (v2, None)),
-                    0x1 => modify_registers(&mut state, reg1, reg2, |v1, v2| (v1 | v2, None)),
-                    0x2 => modify_registers(&mut state, reg1, reg2, |v1, v2| (v1 & v2, None)),
-                    0x3 => modify_registers(&mut state, reg1, reg2, |v1, v2| (v1 ^ v2, None)),
-                    0x4 => modify_registers(&mut state, reg1, reg2, |v1, v2| {
-                        let (result, overflow) = v1.overflowing_add(v2);
-                        (result, Some(overflow))
-                    }),
-                    0x5 => modify_registers(&mut state, reg1, reg2, |v1, v2| {
-                        let (result, overflow) = v1.overflowing_sub(v2);
-                        (result, Some(!overflow))
-                    }),
-                    0x6 => modify_registers(&mut state, reg1, reg2, |v1, _| {
-                        (v1 >> 1, Some(v1 & 1 != 0))
-                    }),
-                    0x7 => modify_registers(&mut state, reg1, reg2, |v1, v2| {
-                        let (result, overflow) = v2.overflowing_sub(v1);
-                        (result, Some(!overflow))
-                    }),
-                    0xE => modify_registers(&mut state, reg1, reg2, |v1, _| {
-                        (v1 << 1, Some(v1 & 0x80 != 0))
-                    }),
-                    _ => panic!("Unsupported opcode"),
-                };
-                increment_program_counter(&mut state);
-            }
-            0x9 => {
-                conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.payload.operands();
-                    assert_eq!(zero, 0, "Unsupported opcode");
-                    state.registers[reg1 as usize] != state.registers[reg2 as usize]
-                });
-                increment_program_counter(&mut state);
-            }
-            0xA => {
-                state.index = self.payload.address();
-                increment_program_counter(&mut state);
-            }
-            0xB => {
-                state.program_counter = self
-                    .payload
-                    .address()
-                    .wrapping_add(state.registers[0] as u16);
-            }
-            0xC => {
-                let (reg, value) = self.payload.reg_and_value();
-
-                let mut rng = thread_rng();
-                let sample = rng.gen_range(0, 255);
-
-                state.registers[reg as usize] = sample as u8 & value;
-
-                increment_program_counter(&mut state);
-            }
-            0xD => {
-                let (x, y, n) = self.payload.operands();
-
-                let x = state.registers[x as usize];
-                let y = state.registers[y as usize];
-
-                state.registers[0xF] = 0;
-                for y_pos in 0..n {
-                    let pixel_byte = state.memory[((state.index + y_pos as u16) % 4096) as usize];
-
-                    let mut x_pos = 0;
-                    let mut pixel_mask = 0x80;
-
-                    while x_pos < 8 {
-                        let pixel_bit = (pixel_byte & pixel_mask) > 0;
-
-                        let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
-
-                        if pixel_bit != state.gfx[pixel_pos] {
-                            state.draw = true;
-                        }
-
-                        if pixel_bit {
-                            if state.gfx[pixel_pos] {
-                                state.registers[0xF] = 1;
-                            }
-                            state.gfx[pixel_pos] ^= true;
-                        }
-
-                        x_pos += 1;
-                        pixel_mask >>= 1;
-                    }
-                }
-                increment_program_counter(&mut state);
-            }
-            0xE => {
-                let (reg, value) = self.payload.reg_and_value();
-                let skip = match value {
-                    0x9E => state.key[state.registers[reg as usize] as usize],
-                    0xA1 => !state.key[state.registers[reg as usize] as usize],
-                    _ => unimplemented!("Unsupported opcode"),
-                };
-                if skip {
-                    increment_program_counter(&mut state);
-                }
-                increment_program_counter(&mut state);
-            }
-            0xF => {
-                let (reg, value) = self.payload.reg_and_value();
-                match value {
-                    0x07 => {
-                        state.registers[reg as usize] = state.delay_timer;
-                    }
-                    0x0A => {
-                        let mut key_pressed = false;
-                        for i in 0x0..=0xF {
-                            if state.key[i] {
-                                state.registers[reg as usize] = i as u8;
-                                key_pressed = true;
-                                break;
-                            }
-                        }
-
-                        if !key_pressed {
-                            // if no key was pressed, we directly return without
-                            // incrementing the program counter
-                            return;
-                        }
-                    }
-                    0x15 => {
-                        state.delay_timer = state.registers[reg as usize];
-                    }
-                    0x18 => {
-                        state.sound_timer = state.registers[reg as usize];
-                    }
-                    0x1E => {
-                        state.index = state
-                            .index
-                            .wrapping_add(state.registers[reg as usize] as u16);
-                    }
-                    0x29 => {
-                        let character: u16 = state.registers[reg as usize] as u16;
-                        assert!(character <= 0xF);
-                        state.index = CHIP8_CHARSET_OFFSET + character * 5;
-                    }
-                    0x33 => {
-                        let mut a: u8 = state.registers[reg as usize];
-                        state.memory[(state.index + 2) as usize] = (a % 10) as u8;
-
-                        a /= 10;
-                        state.memory[(state.index + 1) as usize] = (a % 10) as u8;
-
-                        a /= 10;
-                        state.memory[state.index as usize] = (a % 10) as u8;
-                    }
-                    0x55 => {
-                        for reg in 0x0..=reg {
-                            state.memory[((state.index + reg as u16) % 4096) as usize] =
-                                state.registers[reg as usize];
-                        }
-                    }
-                    0x65 => {
-                        for reg in 0x0..=reg {
-                            state.registers[reg as usize] =
-                                state.memory[((state.index + reg as u16) % 4096) as usize];
-                        }
-                    }
-                    _ => unimplemented!("Unsupported opcode"),
-                }
-                increment_program_counter(&mut state);
-            }
+            0x1 => JmpInstruction::try_from(self).unwrap().execute(&mut state),
+            0x2 => CallInstruction::try_from(self).unwrap().execute(&mut state),
+            0x3 => SeInstruction::try_from(self).unwrap().execute(&mut state),
+            0x4 => SneInstruction::try_from(self).unwrap().execute(&mut state),
+            0x5 => SreInstruction::try_from(self).unwrap().execute(&mut state),
+            0x6 => LdrInstruction::try_from(self).unwrap().execute(&mut state),
+            0x7 => AddInstruction::try_from(self).unwrap().execute(&mut state),
+            0x8 => RegInstruction::try_from(self).unwrap().execute(&mut state),
+            0x9 => SrneInstruction::try_from(self).unwrap().execute(&mut state),
+            0xA => LdInstruction::try_from(self).unwrap().execute(&mut state),
+            0xB => JmprInstruction::try_from(self).unwrap().execute(&mut state),
+            0xC => RndInstruction::try_from(self).unwrap().execute(&mut state),
+            0xD => DrwInstruction::try_from(self).unwrap().execute(&mut state),
+            0xE => SkInstruction::try_from(self).unwrap().execute(&mut state),
+            0xF => LduInstruction::try_from(self).unwrap().execute(&mut state),
             _ => unimplemented!("Unsupported opcode"),
         };
     }
