@@ -160,31 +160,37 @@ impl Chip8 {
 
 #[derive(Debug)]
 pub struct Opcode {
-    bytes: [u8; 4],
+    instruction_class: u8,
+    payload: OpcodePayload,
+}
+
+#[derive(Debug)]
+pub struct OpcodePayload {
+    bytes: [u8; 3],
+}
+
+impl OpcodePayload {
+    pub fn address(&self) -> u16 {
+        (self.bytes[0] as u16) << 8 | (self.bytes[1] as u16) << 4 | self.bytes[2] as u16
+    }
+
+    pub fn reg_and_value(&self) -> (u8, u8) {
+        (self.bytes[0], (self.bytes[1] << 4) | self.bytes[2])
+    }
+
+    pub fn operands(&self) -> (u8, u8, u8) {
+        (self.bytes[0], self.bytes[1], self.bytes[2])
+    }
 }
 
 impl Opcode {
     pub fn new(opcode: &[u8; 2]) -> Opcode {
         Opcode {
-            bytes: [
-                opcode[0] >> 4,
-                opcode[0] & 0xF,
-                opcode[1] >> 4,
-                opcode[1] & 0xF,
-            ],
+            instruction_class: opcode[0] >> 4,
+            payload: OpcodePayload {
+                bytes: [opcode[0] & 0xF, opcode[1] >> 4, opcode[1] & 0xF],
+            },
         }
-    }
-
-    pub fn address(&self) -> u16 {
-        (self.bytes[1] as u16) << 8 | (self.bytes[2] as u16) << 4 | self.bytes[3] as u16
-    }
-
-    pub fn reg_and_value(&self) -> (u8, u8) {
-        (self.bytes[1], (self.bytes[2] << 4) | self.bytes[3])
-    }
-
-    pub fn operands(&self) -> (u8, u8, u8) {
-        (self.bytes[1], self.bytes[2], self.bytes[3])
     }
 
     pub fn execute(self, mut state: &mut Chip8) {
@@ -217,9 +223,9 @@ impl Opcode {
             ((x % 64) + ((y % 32) * 64)) as usize
         }
 
-        match self.bytes[0] {
+        match self.instruction_class {
             0x0 => {
-                let payload = self.address();
+                let payload = self.payload.address();
                 match payload {
                     0x0E0 => {
                         state.gfx = [false; 64 * 32];
@@ -235,49 +241,49 @@ impl Opcode {
                 };
             }
             0x1 => {
-                state.program_counter = self.address();
+                state.program_counter = self.payload.address();
             }
             0x2 => {
                 assert!(state.stack_pointer < 16, "Stack overflow");
                 //increment_program_counter(&mut state);
                 state.stack[state.stack_pointer as usize] = state.program_counter;
                 state.stack_pointer = state.stack_pointer + 1;
-                state.program_counter = self.address();
+                state.program_counter = self.payload.address();
             }
             0x3 => {
                 conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg, value) = opcode.reg_and_value();
+                    let (reg, value) = opcode.payload.reg_and_value();
                     state.registers[reg as usize] == value
                 });
                 increment_program_counter(&mut state);
             }
             0x4 => {
                 conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg, value) = opcode.reg_and_value();
+                    let (reg, value) = opcode.payload.reg_and_value();
                     state.registers[reg as usize] != value
                 });
                 increment_program_counter(&mut state);
             }
             0x5 => {
                 conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.operands();
+                    let (reg1, reg2, zero) = opcode.payload.operands();
                     assert_eq!(zero, 0, "Unsupported opcode");
                     state.registers[reg1 as usize] == state.registers[reg2 as usize]
                 });
                 increment_program_counter(&mut state);
             }
             0x6 => {
-                let (reg, value) = self.reg_and_value();
+                let (reg, value) = self.payload.reg_and_value();
                 state.registers[reg as usize] = value;
                 increment_program_counter(&mut state);
             }
             0x7 => {
-                let (reg, value) = self.reg_and_value();
+                let (reg, value) = self.payload.reg_and_value();
                 state.registers[reg as usize] = state.registers[reg as usize].wrapping_add(value);
                 increment_program_counter(&mut state);
             }
             0x8 => {
-                let (reg1, reg2, op) = self.operands();
+                let (reg1, reg2, op) = self.payload.operands();
                 match op {
                     0x0 => modify_registers(&mut state, reg1, reg2, |_, v2| (v2, None)),
                     0x1 => modify_registers(&mut state, reg1, reg2, |v1, v2| (v1 | v2, None)),
@@ -307,21 +313,24 @@ impl Opcode {
             }
             0x9 => {
                 conditional_skip(&self, &mut state, |opcode, state| {
-                    let (reg1, reg2, zero) = opcode.operands();
+                    let (reg1, reg2, zero) = opcode.payload.operands();
                     assert_eq!(zero, 0, "Unsupported opcode");
                     state.registers[reg1 as usize] != state.registers[reg2 as usize]
                 });
                 increment_program_counter(&mut state);
             }
             0xA => {
-                state.index = self.address();
+                state.index = self.payload.address();
                 increment_program_counter(&mut state);
             }
             0xB => {
-                state.program_counter = self.address().wrapping_add(state.registers[0] as u16);
+                state.program_counter = self
+                    .payload
+                    .address()
+                    .wrapping_add(state.registers[0] as u16);
             }
             0xC => {
-                let (reg, value) = self.reg_and_value();
+                let (reg, value) = self.payload.reg_and_value();
 
                 let mut rng = thread_rng();
                 let sample = rng.gen_range(0, 255);
@@ -331,7 +340,7 @@ impl Opcode {
                 increment_program_counter(&mut state);
             }
             0xD => {
-                let (x, y, n) = self.operands();
+                let (x, y, n) = self.payload.operands();
 
                 let x = state.registers[x as usize];
                 let y = state.registers[y as usize];
@@ -366,7 +375,7 @@ impl Opcode {
                 increment_program_counter(&mut state);
             }
             0xE => {
-                let (reg, value) = self.reg_and_value();
+                let (reg, value) = self.payload.reg_and_value();
                 let skip = match value {
                     0x9E => state.key[state.registers[reg as usize] as usize],
                     0xA1 => !state.key[state.registers[reg as usize] as usize],
@@ -378,7 +387,7 @@ impl Opcode {
                 increment_program_counter(&mut state);
             }
             0xF => {
-                let (reg, value) = self.reg_and_value();
+                let (reg, value) = self.payload.reg_and_value();
                 match value {
                     0x07 => {
                         state.registers[reg as usize] = state.delay_timer;
