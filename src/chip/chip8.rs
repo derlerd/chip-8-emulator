@@ -1,6 +1,9 @@
 mod constants;
 mod util;
 
+#[macro_use]
+mod macros;
+
 #[cfg(test)]
 mod tests;
 
@@ -45,74 +48,6 @@ pub struct Chip8 {
     cycles_since_timer_dec: u8,
 }
 
-macro_rules! implement_try_from_address_payload {
-    ($name:ty, $instruction_class:expr) => {
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                Ok(Self {
-                    instruction: PhantomData,
-                    address: opcode.payload.address(),
-                })
-            }
-        }
-    };
-}
-
-macro_rules! implement_try_from_reg_and_value {
-    ($name:ty, $instruction_class:expr) => {
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                let (reg, value) = opcode.payload.reg_and_value();
-                Ok(Self {
-                    instruction: PhantomData,
-                    reg,
-                    value,
-                })
-            }
-        }
-    };
-}
-
-macro_rules! implement_try_from_operands {
-    ($name:ty, $instruction_class:expr) => {
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                let (op1, op2, op3) = opcode.payload.operands();
-                Ok(Self {
-                    instruction: PhantomData,
-                    op1,
-                    op2,
-                    op3,
-                })
-            }
-        }
-    };
-}
-
 #[derive(Debug)]
 enum InstructionParsingError {
     InvalidInstructionClass(u8, u8),
@@ -144,7 +79,7 @@ struct Jmp;
 
 type JmpInstruction = InstructionWithAddress<Jmp>;
 
-implement_try_from_address_payload!(JmpInstruction, 0x1);
+implement_try_from_address!(JmpInstruction, 0x1);
 
 impl Executable for JmpInstruction {
     fn execute(self, state: &mut Chip8) {
@@ -156,7 +91,7 @@ struct Call;
 
 type CallInstruction = InstructionWithAddress<Call>;
 
-implement_try_from_address_payload!(CallInstruction, 0x2);
+implement_try_from_address!(CallInstruction, 0x2);
 
 impl Executable for CallInstruction {
     fn execute(self, state: &mut Chip8) {
@@ -312,7 +247,7 @@ struct Ld;
 
 type LdInstruction = InstructionWithAddress<Ld>;
 
-implement_try_from_address_payload!(LdInstruction, 0xA);
+implement_try_from_address!(LdInstruction, 0xA);
 
 impl Executable for LdInstruction {
     fn execute(self, mut state: &mut Chip8) {
@@ -325,7 +260,7 @@ struct Jmpr;
 
 type JmprInstruction = InstructionWithAddress<Jmpr>;
 
-implement_try_from_address_payload!(JmprInstruction, 0xB);
+implement_try_from_address!(JmprInstruction, 0xB);
 
 impl Executable for JmprInstruction {
     fn execute(self, mut state: &mut Chip8) {
