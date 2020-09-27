@@ -12,7 +12,8 @@ use std::io::Read;
 
 use crate::chip::{
     chip8::constants::{
-        CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_TIMER_RESOLUTION,
+        CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_MAX_PROGRAM_SIZE,
+        CHIP8_TIMER_RESOLUTION,
     },
     chip8::opcodes::Opcode,
     Chip, LoadProgramError,
@@ -47,6 +48,10 @@ impl Chip for Chip8 {
         let mut buffer = vec![0; md.len() as usize];
         file.read(&mut buffer)
             .map_err(|_| LoadProgramError::CouldNotReadFile(path.to_string()))?;
+
+        if buffer.len() > (CHIP8_MAX_PROGRAM_SIZE as usize) {
+            return Err(LoadProgramError::ProgramTooLarge(buffer.len()));
+        }
 
         self.load_program_bytes(&buffer);
 

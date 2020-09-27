@@ -14,9 +14,9 @@ pub struct Display {
 
 impl Display {
     pub fn new(pixels: &[bool]) -> Self {
-        let mut tmp = [false; 64 * 32]; 
+        let mut tmp = [false; 64 * 32];
         tmp.copy_from_slice(&pixels[..]);
-        Display { pixels : tmp }
+        Display { pixels: tmp }
     }
 }
 
@@ -59,7 +59,7 @@ impl ChipWithCursiveDisplay for Chip8 {
     type Display = Display;
 
     fn update_ui(&mut self, gfx_sink: &CbSink) {
-        fn get_display(chip : &Chip8) -> Display {
+        fn get_display(chip: &Chip8) -> Display {
             Display::new(chip.read_output_pins())
         }
 
