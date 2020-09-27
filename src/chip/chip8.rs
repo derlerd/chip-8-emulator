@@ -1,6 +1,9 @@
-use rand::{thread_rng, Rng};
+mod constants;
 
-use crate::chip::{Chip, ChipWithDisplayOutput, LoadProgramError};
+#[cfg(test)]
+mod tests;
+
+use rand::{thread_rng, Rng};
 
 use std::fs;
 use std::fs::File;
@@ -14,33 +17,12 @@ use cursive::{
     CbSink, Printer, Vec2,
 };
 
-#[cfg(test)]
-mod tests;
-
-const CHIP8_CYCLES_PER_TIMER_DEC: u8 = 10;
-
-const CHIP8_CHARSET_OFFSET: u16 = 0;
-
-const CHIP8_CHARSET_LEN: u16 = 80;
-
-const CHIP8_CHARSET: [u8; 80] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
-];
+use crate::chip::{
+    chip8::constants::{
+        CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_TIMER_RESOLUTION,
+    },
+    Chip, ChipWithDisplayOutput, LoadProgramError,
+};
 
 #[derive(Clone)]
 pub struct Chip8 {
@@ -90,7 +72,7 @@ impl Chip for Chip8 {
 
         state.cycles_since_timer_dec += 1;
 
-        if state.cycles_since_timer_dec % CHIP8_CYCLES_PER_TIMER_DEC == 0 {
+        if state.cycles_since_timer_dec % CHIP8_TIMER_RESOLUTION == 0 {
             if state.delay_timer > 0 {
                 state.delay_timer -= 1;
             }
