@@ -20,9 +20,25 @@ pub trait Chip {
     type MemoryAddress;
 
     fn load_program(&mut self, path: &str) -> Result<usize, LoadProgramError>;
-    fn load_program_bytes(&mut self, program: &[u8]);
     fn cycle(&mut self);
-    fn read_output_pins(&self) -> [bool; 64 * 32];
+    fn read_output_pins(&self) -> &[bool];
     fn set_input_pin(&mut self, pin: Self::PinAddress, value: bool);
     fn reset_input_pins(&mut self);
+}
+
+
+impl std::fmt::Display for LoadProgramError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            LoadProgramError::CouldNotOpenFile(message) => {
+                write!(f, "Could not open file: {:?}", message)
+            },
+            LoadProgramError::CouldNotReadMetadata(message) => {
+            	write!(f, "Could not read metadata: {:?}", message)
+            },
+            LoadProgramError::CouldNotReadFile(message) => {
+            	write!(f, "Could not read file: {:?}", message)
+            }
+        }
+    }
 }

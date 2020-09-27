@@ -53,12 +53,6 @@ impl Chip for Chip8 {
         Ok(md.len() as usize)
     }
 
-    fn load_program_bytes(&mut self, program: &[u8]) {
-        for i in 0..program.len() {
-            self.set_memory_byte(program[i], (0x200 + i) as u16);
-        }
-    }
-
     fn cycle(&mut self) {
         let opcode = self.next_instruction();
         let mut state = self;
@@ -80,8 +74,8 @@ impl Chip for Chip8 {
         }
     }
 
-    fn read_output_pins(&self) -> [bool; 64 * 32] {
-        self.gfx
+    fn read_output_pins(&self) -> &[bool] {
+        &self.gfx
     }
 
     fn set_input_pin(&mut self, pin: u8, value: bool) {
@@ -120,12 +114,18 @@ impl Chip8 {
         }
     }
 
-    pub fn next_instruction(&self) -> Opcode {
+    fn next_instruction(&self) -> Opcode {
         assert!(self.program_counter <= 4094);
         Opcode::new(&[
             self.memory[self.program_counter as usize],
             self.memory[(self.program_counter + 1) as usize],
         ])
+    }
+
+    pub fn load_program_bytes(&mut self, program: &[u8]) {
+        for i in 0..program.len() {
+            self.set_memory_byte(program[i], (0x200 + i) as u16);
+        }
     }
 
     fn set_memory_byte(&mut self, byte: u8, index: u16) {

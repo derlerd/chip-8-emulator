@@ -13,14 +13,16 @@ pub struct Display {
 }
 
 impl Display {
-    pub fn new(pixels: [bool; 64 * 32]) -> Self {
-        Display { pixels }
+    pub fn new(pixels: &[bool]) -> Self {
+        let mut tmp = [false; 64 * 32]; 
+        tmp.copy_from_slice(&pixels[..]);
+        Display { pixels : tmp }
     }
 }
 
 impl Default for Display {
     fn default() -> Self {
-        Self::new([false; 64 * 32])
+        Self::new(&[false; 64 * 32])
     }
 }
 
