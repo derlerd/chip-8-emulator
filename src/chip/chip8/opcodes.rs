@@ -1,16 +1,26 @@
 #[macro_use]
 mod macros;
-mod instructions;
+mod arithmetic_and_logic;
+mod program_flow;
+mod system;
 
 use core::convert::TryFrom;
 use std::marker::PhantomData;
 
-use crate::chip::chip8::opcodes::instructions::{
-    AddInstruction, CallInstruction, DrwInstruction, JmpInstruction, JmprInstruction,
-    LdInstruction, LdrInstruction, LduInstruction, RegInstruction, RndInstruction, SeInstruction,
-    SkInstruction, SneInstruction, SreInstruction, SrneInstruction, SysInstruction,
+use crate::chip::chip8::{
+    opcodes::{
+        arithmetic_and_logic::{
+            AddInstruction, DrwInstruction, LdInstruction, LdrInstruction, LduInstruction,
+            RegInstruction, RndInstruction,
+        },
+        program_flow::{
+            CallInstruction, JmpInstruction, JmprInstruction, SeInstruction, SkInstruction,
+            SneInstruction, SreInstruction, SrneInstruction,
+        },
+        system::SysInstruction,
+    },
+    Chip8,
 };
-use crate::chip::chip8::Chip8;
 
 #[derive(Debug)]
 pub struct Opcode {
@@ -48,16 +58,16 @@ impl Opcode {
     }
 
     pub fn execute(self, mut state: &mut Chip8) {
-        fn execute<T>(opcode : Opcode, mut state : &mut Chip8) 
-        where 
-            T : ExecutableOpcode + TryFrom<Opcode>,
-            <T as TryFrom<Opcode>>::Error: std::fmt::Debug
+        fn execute<T>(opcode: Opcode, mut state: &mut Chip8)
+        where
+            T: ExecutableOpcode + TryFrom<Opcode>,
+            <T as TryFrom<Opcode>>::Error: std::fmt::Debug,
         {
             // We can safely unwrap the converted instructions below as we know
             // that the instruction class will map the respective instruction.
             T::try_from(opcode).unwrap().execute(&mut state);
         }
-        
+
         match self.instruction_class {
             0x0 => execute::<SysInstruction>(self, &mut state),
             0x1 => execute::<JmpInstruction>(self, &mut state),

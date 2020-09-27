@@ -11,103 +11,6 @@ use crate::chip::chip8::{
     util, Chip8,
 };
 
-pub(crate) struct Sys;
-
-pub(crate) type SysInstruction = InstructionWithAddress<Sys>;
-
-implement_try_from_address!(SysInstruction, 0x0);
-
-impl ExecutableOpcode for SysInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        match self.address {
-            0x0E0 => {
-                state.gfx = [false; 64 * 32];
-                state.program_counter += 2;
-            }
-            0x0EE => {
-                assert!(state.stack_pointer > 0, "Stack underflow");
-                state.program_counter = state.stack[(state.stack_pointer - 1) as usize];
-                state.stack_pointer = state.stack_pointer - 1;
-                util::increment_program_counter(&mut state);
-            }
-            _ => panic!("Opcode not supported"),
-        };
-    }
-}
-
-pub(crate) struct Jmp;
-
-pub(crate) type JmpInstruction = InstructionWithAddress<Jmp>;
-
-implement_try_from_address!(JmpInstruction, 0x1);
-
-impl ExecutableOpcode for JmpInstruction {
-    fn execute(self, state: &mut Chip8) {
-        state.program_counter = self.address;
-    }
-}
-
-pub(crate) struct Call;
-
-pub(crate) type CallInstruction = InstructionWithAddress<Call>;
-
-implement_try_from_address!(CallInstruction, 0x2);
-
-impl ExecutableOpcode for CallInstruction {
-    fn execute(self, state: &mut Chip8) {
-        assert!(state.stack_pointer < 16, "Stack overflow");
-        state.stack[state.stack_pointer as usize] = state.program_counter;
-        state.stack_pointer = state.stack_pointer + 1;
-        state.program_counter = self.address;
-    }
-}
-
-pub(crate) struct Se;
-
-pub(crate) type SeInstruction = InstructionWithRegAndValue<Se>;
-
-implement_try_from_reg_and_value!(SeInstruction, 0x3);
-
-impl ExecutableOpcode for SeInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
-            state.registers[instruction.reg as usize] == instruction.value
-        });
-        util::increment_program_counter(&mut state);
-    }
-}
-
-pub(crate) struct Sne;
-
-pub(crate) type SneInstruction = InstructionWithRegAndValue<Sne>;
-
-implement_try_from_reg_and_value!(SneInstruction, 0x4);
-
-impl ExecutableOpcode for SneInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
-            state.registers[instruction.reg as usize] != instruction.value
-        });
-        util::increment_program_counter(&mut state);
-    }
-}
-
-pub(crate) struct Sre;
-
-pub(crate) type SreInstruction = InstructionWithOperands<Sre>;
-
-implement_try_from_operands!(SreInstruction, 0x5);
-
-impl ExecutableOpcode for SreInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
-            assert_eq!(instruction.op3, 0, "Unsupported opcode");
-            state.registers[instruction.op1 as usize] == state.registers[instruction.op2 as usize]
-        });
-        util::increment_program_counter(&mut state);
-    }
-}
-
 pub(crate) struct Ldr;
 
 pub(crate) type LdrInstruction = InstructionWithRegAndValue<Ldr>;
@@ -187,22 +90,6 @@ impl ExecutableOpcode for RegInstruction {
     }
 }
 
-pub(crate) struct Srne;
-
-pub(crate) type SrneInstruction = InstructionWithOperands<Srne>;
-
-implement_try_from_operands!(SrneInstruction, 0x9);
-
-impl ExecutableOpcode for SrneInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
-            assert_eq!(instruction.op3, 0, "Unsupported opcode");
-            state.registers[instruction.op1 as usize] != state.registers[instruction.op2 as usize]
-        });
-        util::increment_program_counter(&mut state);
-    }
-}
-
 pub(crate) struct Ld;
 
 pub(crate) type LdInstruction = InstructionWithAddress<Ld>;
@@ -213,18 +100,6 @@ impl ExecutableOpcode for LdInstruction {
     fn execute(self, mut state: &mut Chip8) {
         state.index = self.address;
         util::increment_program_counter(&mut state);
-    }
-}
-
-pub(crate) struct Jmpr;
-
-pub(crate) type JmprInstruction = InstructionWithAddress<Jmpr>;
-
-implement_try_from_address!(JmprInstruction, 0xB);
-
-impl ExecutableOpcode for JmprInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        state.program_counter = self.address.wrapping_add(state.registers[0] as u16);
     }
 }
 
@@ -287,26 +162,6 @@ impl ExecutableOpcode for DrwInstruction {
                 x_pos += 1;
                 pixel_mask >>= 1;
             }
-        }
-        util::increment_program_counter(&mut state);
-    }
-}
-
-pub(crate) struct Sk;
-
-pub(crate) type SkInstruction = InstructionWithRegAndValue<Sk>;
-
-implement_try_from_reg_and_value!(SkInstruction, 0xE);
-
-impl ExecutableOpcode for SkInstruction {
-    fn execute(self, mut state: &mut Chip8) {
-        let skip = match self.value {
-            0x9E => state.key[state.registers[self.reg as usize] as usize],
-            0xA1 => !state.key[state.registers[self.reg as usize] as usize],
-            _ => unimplemented!("Unsupported opcode"),
-        };
-        if skip {
-            util::increment_program_counter(&mut state);
         }
         util::increment_program_counter(&mut state);
     }
