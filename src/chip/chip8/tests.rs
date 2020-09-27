@@ -5,6 +5,7 @@ use crate::chip::Chip;
 use rand::{thread_rng, Rng};
 use std::convert::TryInto;
 
+/// Prepares a new Chip 8 with a program consisting of a single instruction
 fn prepare_state_with_single_instruction(instruction: u16) -> Chip8 {
     let mut chip8 = Chip8::new();
     chip8.memory[0x200] = ((instruction & 0xFF00) >> 8) as u8;
@@ -12,6 +13,9 @@ fn prepare_state_with_single_instruction(instruction: u16) -> Chip8 {
     chip8
 }
 
+/// Obtains a new Chip 8 with the given `instruction` as the program. Applies `before_cycle` to
+/// the state, performs one cycle using the state after calling `before_cycle`, and applies
+/// `after_cycle` to the state after the cycle.
 fn do_cycle(instruction: u16, before_cycle: impl Fn(&mut Chip8), after_cycle: impl Fn(&mut Chip8)) {
     let mut state = prepare_state_with_single_instruction(instruction);
 
@@ -344,7 +348,7 @@ fn test_draw_sprite() {
                     let index = translate_gfx(x, y);
                     assert_eq!(
                         state.memory[((state.index + y) % 4096) as usize] & mask > 0,
-                        state.gfx[index]
+                        state.output_pins[index]
                     );
                     mask >>= 1;
                 }
@@ -363,7 +367,7 @@ fn test_skip_if_key(pressed: bool) {
             |state| {
                 assert_eq!(state.program_counter, 0x200);
                 state.registers[reg as usize] = 0x1;
-                state.key[0x1] = pressed;
+                state.input_pins[0x1] = pressed;
             },
             |state| {
                 assert_eq!(state.program_counter, 0x204);
@@ -375,7 +379,7 @@ fn test_skip_if_key(pressed: bool) {
             |state| {
                 assert_eq!(state.program_counter, 0x200);
                 state.registers[reg as usize] = 0x1;
-                state.key[0x1] = !pressed;
+                state.input_pins[0x1] = !pressed;
             },
             |state| {
                 assert_eq!(state.program_counter, 0x202);
@@ -431,7 +435,7 @@ fn test_load_key_press() {
                 instruction,
                 |state| {
                     assert_eq!(state.program_counter, 0x200);
-                    state.key[key] = true;
+                    state.input_pins[key] = true;
                 },
                 |state| {
                     assert_eq!(state.program_counter, 0x202);

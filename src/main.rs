@@ -1,3 +1,7 @@
+//! An implementation of a Chip 8 emulator. The implementation follows to instruction set  
+//! described [here](https://en.wikipedia.org/wiki/CHIP-8#Opcode_table), and is based on
+//! the excellent tutorial [here](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/). 
+//! For graphical output it relies on the cursive text user interface library.
 mod chip;
 
 use cursive::CbSink;
@@ -9,56 +13,83 @@ use std::time::Duration;
 
 use crate::chip::{chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay};
 
-enum KeyEvent {
+/// Represents an even to be processed by the event loop.
+enum Event {
+	/// Occurs when the key passed in the enum value was pressed.
     Key(u8),
+
+    /// Indicates that all keys are released. Note that this is a
+    /// hack because OS X currently requires extra permissions to
+    /// listen to key down/up events. To get around this we simply
+    /// read the stdin (indirectly via registering for cursive 
+    /// events) and assign one key to trigger releasing all keys. 
     KeyRelease,
+    
+    /// Decreases the sleep time after each cycle. 
     SpeedUp,
+
+    /// Increases the sleep time after each cycle.
     SlowDown,
+
+    /// Shut down.
     Quit,
 }
 
+/// Represents the channels available to the event loop.
 #[derive(Clone)]
-struct ExecLoopIoChannels {
-    gfx_sink: CbSink,
-    key_drain: Receiver<KeyEvent>,
-    shutdown_sink: Sender<()>,
+struct EventLoopChannels {
+	/// The channel to send the UI refresh messages to.
+    gfx_sender: CbSink,
+
+    /// The channel on which the Events are received.
+    key_receiver: Receiver<Event>,
+
+    /// A channel to report that the thread has completed
+    /// shutdown.
+    shutdown_sender: Sender<()>,
 }
 
-fn execute(mut chip8: Chip8, io_channels: ExecLoopIoChannels) {
+/// The event loop. Constantly loops over process key event if there
+/// is any message. Invoke cycle on the chip. Update the UI. Sleep
+/// for the cycle sleep time (initially 1ms). Start over.
+fn event_loop(mut chip8: Chip8, io_channels: EventLoopChannels) {
     let mut cycle_sleep = 1;
     loop {
-        match io_channels.key_drain.recv_timeout(Duration::from_millis(0)) {
-            Ok(KeyEvent::Key(key)) => {
+        match io_channels.key_receiver.recv_timeout(Duration::from_millis(0)) {
+            Ok(Event::Key(key)) => {
                 chip8.set_input_pin(key, true);
             }
-            Ok(KeyEvent::KeyRelease) => {
+            Ok(Event::KeyRelease) => {
                 chip8.reset_input_pins();
             }
-            Ok(KeyEvent::Quit) => {
+            Ok(Event::Quit) => {
                 io_channels
-                    .shutdown_sink
+                    .shutdown_sender
                     .send(())
                     .expect("Failed to orderly shutdown.");
                 return;
             }
-            Ok(KeyEvent::SpeedUp) => {
+            Ok(Event::SpeedUp) => {
                 if cycle_sleep > 5 {
                     cycle_sleep -= 5;
                 }
             }
-            Ok(KeyEvent::SlowDown) => {
+            Ok(Event::SlowDown) => {
                 cycle_sleep += 5;
             }
             Err(_) => {}
         };
 
         chip8.cycle();
-        chip8.update_ui(&io_channels.gfx_sink);
+        chip8.update_ui(&io_channels.gfx_sender);
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }
 }
 
+/// Loads a program based on the given arguments. If there are no arguments, it
+/// loads a simple default program, whereas it interprets the first argument as 
+/// path to the program to load and attempts to load the program from there. 
 fn load_program_from_args(chip8: &mut Chip8) {
     let args: Vec<String> = env::args().collect();
     match args.len() {
@@ -75,6 +106,7 @@ fn load_program_from_args(chip8: &mut Chip8) {
     };
 }
 
+/// Constructs the UI and spawns the event loop and the UI thread.
 fn main() {
     let mut chip8 = Chip8::new();
 
@@ -83,23 +115,23 @@ fn main() {
     let mut siv = cursive::default();
 
     let cb_sink = siv.cb_sink().clone();
-    let (key_sender, key_receiver) = bounded::<KeyEvent>(10);
+    let (key_sender, key_receiver) = bounded::<Event>(10);
     let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
 
     std::thread::spawn(move || {
-        execute(
+        event_loop(
             chip8,
-            ExecLoopIoChannels {
-                gfx_sink: cb_sink,
-                key_drain: key_receiver,
-                shutdown_sink: shutdown_sender,
+            EventLoopChannels {
+                gfx_sender: cb_sink,
+                key_receiver: key_receiver,
+                shutdown_sender: shutdown_sender,
             },
         );
     });
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Esc, move |s| {
-        sender.send(KeyEvent::Quit).unwrap();
+        sender.send(Event::Quit).unwrap();
         shutdown_receiver.recv().expect("Orderly shutdown failed");
         s.quit();
     });
@@ -124,23 +156,23 @@ fn main() {
     ] {
         let sender = key_sender.clone();
         siv.add_global_callback(*i, move |_s| {
-            sender.send(KeyEvent::Key(*j as u8)).unwrap();
+            sender.send(Event::Key(*j as u8)).unwrap();
         });
     }
 
     let sender = key_sender.clone();
     siv.add_global_callback(' ', move |_s| {
-        sender.send(KeyEvent::KeyRelease).unwrap();
+        sender.send(Event::KeyRelease).unwrap();
     });
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Up, move |_s| {
-        sender.send(KeyEvent::SpeedUp).unwrap();
+        sender.send(Event::SpeedUp).unwrap();
     });
 
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Down, move |_s| {
-        sender.send(KeyEvent::SlowDown).unwrap();
+        sender.send(Event::SlowDown).unwrap();
     });
 
     siv.add_layer(Display::default());

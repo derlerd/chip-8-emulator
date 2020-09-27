@@ -8,11 +8,13 @@ use cursive::{
     CbSink, Printer, Vec2,
 };
 
+/// Represents the display of the Chip 8
 pub struct Display {
     pixels: [bool; 64 * 32],
 }
 
 impl Display {
+    /// Creates a new display from a slice.
     pub fn new(pixels: &[bool]) -> Self {
         let mut tmp = [false; 64 * 32];
         tmp.copy_from_slice(&pixels[..]);
@@ -26,6 +28,8 @@ impl Default for Display {
     }
 }
 
+/// Implements cursive::view::View for Display to enable drawing it
+/// as a View out of the box.
 impl View for Display {
     fn draw(&self, printer: &Printer) {
         printer.with_color(
@@ -56,8 +60,6 @@ impl View for Display {
 }
 
 impl ChipWithCursiveDisplay for Chip8 {
-    type Display = Display;
-
     fn update_ui(&mut self, gfx_sink: &CbSink) {
         fn get_display(chip: &Chip8) -> Display {
             Display::new(chip.read_output_pins())

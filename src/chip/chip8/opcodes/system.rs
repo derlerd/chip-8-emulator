@@ -16,7 +16,7 @@ impl ExecutableOpcode for SysInstruction {
     fn execute(self, mut state: &mut Chip8) {
         match self.address {
             0x0E0 => {
-                state.gfx = [false; 64 * 32];
+                state.output_pins = [false; 64 * 32];
                 state.program_counter += 2;
             }
             0x0EE => {

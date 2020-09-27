@@ -119,8 +119,8 @@ implement_try_from_reg_and_value!(SkInstruction, 0xE);
 impl ExecutableOpcode for SkInstruction {
     fn execute(self, mut state: &mut Chip8) {
         let skip = match self.value {
-            0x9E => state.key[state.registers[self.reg as usize] as usize],
-            0xA1 => !state.key[state.registers[self.reg as usize] as usize],
+            0x9E => state.input_pins[state.registers[self.reg as usize] as usize],
+            0xA1 => !state.input_pins[state.registers[self.reg as usize] as usize],
             _ => unimplemented!("Unsupported opcode"),
         };
         if skip {

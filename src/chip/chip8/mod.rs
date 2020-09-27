@@ -1,6 +1,10 @@
+/// Chip 8 constants.
 mod constants;
+/// Cursive display output.
 pub mod cursive_display;
+/// Decoding of opcodes and their execution.
 mod opcodes;
+/// Convenience functions for modification of the Chip 8 state.
 mod util;
 
 #[cfg(test)]
@@ -19,25 +23,65 @@ use crate::chip::{
     Chip, LoadProgramError,
 };
 
+/// Represents the state of the Chip 8.
 #[derive(Clone)]
 pub struct Chip8 {
-    opcode: u16,
+    /// 4096 bytes of main memory
     memory: [u8; 4096],
+
+    /// 16 registers where each can store one byte
     registers: [u8; 16],
+
+    /// An index register
     index: u16,
+
+    /// A program counter
     program_counter: u16,
-    gfx: [bool; 64 * 32],
+
+    /// The output pins. Note that those are usually directly wired
+    /// up to the pixels of the display. However, given that this implementation
+    /// considers a display as optional, we refer to them as output_pins for
+    /// the sake of generality.
+    output_pins: [bool; 64 * 32],
+
+    /// The delay timer. Note that this timer is decremented every
+    /// `CHIP8_TIMER_RESOLUTION` cycles.
     delay_timer: u8,
+
+    /// The sound timer. Note that this timer is decremented every
+    /// `CHIP8_TIMER_RESOLUTION` cycles.
     sound_timer: u8,
+
+    /// The input pins. Note that those input pins are usually directly wired
+    /// up to the keys. However, we do not prescribe how this is handled and
+    /// hence refer to them as input pins rather than as keys.
+    input_pins: [bool; 16],
+
+    /// A stack. Note that there are no instructions allowing to modify the
+    /// stack and it is only used to store return addresses for the return
+    /// opcode.
     stack: [u16; 16],
-    stack_pointer: u16,
-    key: [bool; 16],
-    draw: bool,
+
+    /// A pointer, pointing to the current position in the stack.
+    stack_pointer: u8,
+
+    /// A helper variable to properly implement the timer resolution.
     cycles_since_timer_dec: u8,
+
+    /// A flag that indicates whether the output pins changed since it
+    /// was last set to false.
+    draw: bool,
 }
 
 impl Chip for Chip8 {
+    /// The pins can actually be addressed by using just half a byte. However,
+    /// we use a whole byte here and assert whether it is in the right range,
+    /// because it is more convenient to handle.
     type PinAddress = u8;
+
+    /// A memory address is in the range between 0 and 4096 (exclusive). We
+    /// represent it using a u16. This means we have to assert that it is
+    /// in the right range whenever we set it.
     type MemoryAddress = u16;
 
     fn load_program(&mut self, path: &str) -> Result<usize, LoadProgramError> {
@@ -80,22 +124,27 @@ impl Chip for Chip8 {
     }
 
     fn read_output_pins(&self) -> &[bool] {
-        &self.gfx
+        &self.output_pins
     }
 
     fn set_input_pin(&mut self, pin: u8, value: bool) {
         assert!(pin & 0x0F == pin);
-        self.key[pin as usize] = value;
+        self.input_pins[pin as usize] = value;
     }
 
     fn reset_input_pins(&mut self) {
         for i in 0..16 {
-            self.key[i] = false;
+            self.input_pins[i] = false;
         }
     }
 }
 
 impl Chip8 {
+    /// Constructs a new Chip 8 and appropriately initializes all fields so that
+    /// it is ready for the first execution cycle. Essentially this means that
+    /// the program counter is set to 0x200 and the default Chip 8 charset is
+    /// loaded at memory address `CHIP8_CHARSET_OFFSET`. Note that no program is
+    /// loaded upon initialization.
     pub fn new() -> Self {
         let mut memory = [0; 4096];
         for i in 0..CHIP8_CHARSET_LEN {
@@ -103,22 +152,26 @@ impl Chip8 {
         }
 
         Chip8 {
-            opcode: 0,
             memory,
             registers: [0; 16],
             index: 0,
             program_counter: 0x200,
-            gfx: [false; 64 * 32],
+            output_pins: [false; 64 * 32],
             delay_timer: 0,
             sound_timer: 0,
             stack: [0; 16],
             stack_pointer: 0,
-            key: [false; 16],
+            input_pins: [false; 16],
             draw: false,
             cycles_since_timer_dec: 0,
         }
     }
 
+    /// Fetches the next instruction based on the current state of self.program_counter.
+    ///
+    /// # Panics
+    /// In case `self.program_counter` points to an address which would lead to loading
+    /// bytes from invalid memory addresses.
     fn next_instruction(&self) -> Opcode {
         assert!(self.program_counter <= 4094);
         Opcode::new(&[
@@ -127,14 +180,28 @@ impl Chip8 {
         ])
     }
 
+    /// Convenience method to load a program from a slice.
+    ///
+    /// # Panics
+    /// In case `program` is too long, i.e., so that loading it would overflow the memory buffer.
     pub fn load_program_bytes(&mut self, program: &[u8]) {
         for i in 0..program.len() {
             self.set_memory_byte(program[i], (0x200 + i) as u16);
         }
     }
 
+    /// Sets a memory byte
+    ///
+    /// # Panics
+    /// In case the supplied memory address would result in a buffer overflow.
     fn set_memory_byte(&mut self, byte: u8, index: u16) {
         assert!(index < 4096);
         self.memory[index as usize] = byte;
+    }
+}
+
+impl Default for Chip8 {
+    fn default() -> Self {
+        Chip8::new()
     }
 }

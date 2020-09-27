@@ -148,15 +148,15 @@ impl ExecutableOpcode for DrwInstruction {
 
                 let pixel_pos = translate_gfx(x as u16 + x_pos, y as u16 + y_pos as u16);
 
-                if pixel_bit != state.gfx[pixel_pos] {
+                if pixel_bit != state.output_pins[pixel_pos] {
                     state.draw = true;
                 }
 
                 if pixel_bit {
-                    if state.gfx[pixel_pos] {
+                    if state.output_pins[pixel_pos] {
                         state.registers[0xF] = 1;
                     }
-                    state.gfx[pixel_pos] ^= true;
+                    state.output_pins[pixel_pos] ^= true;
                 }
 
                 x_pos += 1;
@@ -180,17 +180,17 @@ impl ExecutableOpcode for LduInstruction {
                 state.registers[self.reg as usize] = state.delay_timer;
             }
             0x0A => {
-                let mut key_pressed = false;
+                let mut input_pin_set = false;
                 for i in 0x0..=0xF {
-                    if state.key[i] {
+                    if state.input_pins[i] {
                         state.registers[self.reg as usize] = i as u8;
-                        key_pressed = true;
+                        input_pin_set = true;
                         break;
                     }
                 }
 
-                if !key_pressed {
-                    // if no key was pressed, we directly return without
+                if !input_pin_set {
+                    // if no input pin was set, we directly return without
                     // incrementing the program counter
                     return;
                 }
