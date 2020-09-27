@@ -1,31 +1,30 @@
 //! An implementation of a Chip 8 emulator. The implementation follows to instruction set  
 //! described [here](https://en.wikipedia.org/wiki/CHIP-8#Opcode_table), and is based on
-//! the excellent tutorial [here](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/). 
+//! the excellent tutorial [here](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/).
 //! For graphical output it relies on the cursive text user interface library.
 mod chip;
 
-use cursive::CbSink;
-
-use std::env;
-
 use crossbeam_channel::{bounded, Receiver, Sender};
+use cursive::CbSink;
+use std::env;
 use std::time::Duration;
 
 use crate::chip::{chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay};
 
-/// Represents an even to be processed by the event loop.
-enum Event {
-	/// Occurs when the key passed in the enum value was pressed.
-    Key(u8),
+/// Represents an even to be processed by the event loop. It is generic
+/// over the type representing the pressed key.
+enum Event<T> {
+    /// Occurs when the key passed in the enum value was pressed.
+    Key(T),
 
     /// Indicates that all keys are released. Note that this is a
     /// hack because OS X currently requires extra permissions to
     /// listen to key down/up events. To get around this we simply
-    /// read the stdin (indirectly via registering for cursive 
-    /// events) and assign one key to trigger releasing all keys. 
+    /// read the stdin (indirectly via registering for cursive
+    /// events) and assign one key to trigger releasing all keys.
     KeyRelease,
-    
-    /// Decreases the sleep time after each cycle. 
+
+    /// Decreases the sleep time after each cycle.
     SpeedUp,
 
     /// Increases the sleep time after each cycle.
@@ -35,32 +34,39 @@ enum Event {
     Quit,
 }
 
-/// Represents the channels available to the event loop.
+/// Represents the channels available to the event loop. It is generic
+/// over the type representing the pressed keys.
 #[derive(Clone)]
-struct EventLoopChannels {
-	/// The channel to send the UI refresh messages to.
+struct EventLoopChannels<T> {
+    /// The channel to send the UI refresh messages to.
     gfx_sender: CbSink,
 
     /// The channel on which the Events are received.
-    key_receiver: Receiver<Event>,
+    key_receiver: Receiver<Event<T>>,
 
     /// A channel to report that the thread has completed
     /// shutdown.
     shutdown_sender: Sender<()>,
 }
 
-/// The event loop. Constantly loops over process key event if there
-/// is any message. Invoke cycle on the chip. Update the UI. Sleep
-/// for the cycle sleep time (initially 1ms). Start over.
-fn event_loop(mut chip8: Chip8, io_channels: EventLoopChannels) {
+/// The event loop. Constantly loops over (1) process event if there
+/// is any. (2) Invoke cycle on the chip. (3) Update the UI. (4) Sleep
+/// for the cycle sleep time (initially 1ms). (5) Start over.
+fn event_loop<T, P, M>(mut chip: T, io_channels: EventLoopChannels<P>)
+where
+    T: Chip<PinAddress = P, MemoryAddress = M> + ChipWithCursiveDisplay,
+{
     let mut cycle_sleep = 1;
     loop {
-        match io_channels.key_receiver.recv_timeout(Duration::from_millis(0)) {
+        match io_channels
+            .key_receiver
+            .recv_timeout(Duration::from_millis(0))
+        {
             Ok(Event::Key(key)) => {
-                chip8.set_input_pin(key, true);
+                chip.set_input_pin(key, true);
             }
             Ok(Event::KeyRelease) => {
-                chip8.reset_input_pins();
+                chip.reset_input_pins();
             }
             Ok(Event::Quit) => {
                 io_channels
@@ -80,16 +86,16 @@ fn event_loop(mut chip8: Chip8, io_channels: EventLoopChannels) {
             Err(_) => {}
         };
 
-        chip8.cycle();
-        chip8.update_ui(&io_channels.gfx_sender);
+        chip.cycle();
+        chip.update_ui(&io_channels.gfx_sender);
 
         std::thread::sleep(Duration::from_millis(cycle_sleep));
     }
 }
 
 /// Loads a program based on the given arguments. If there are no arguments, it
-/// loads a simple default program, whereas it interprets the first argument as 
-/// path to the program to load and attempts to load the program from there. 
+/// loads a simple default program, whereas it interprets the first argument as
+/// path to the program to load and attempts to load the program from there.
 fn load_program_from_args(chip8: &mut Chip8) {
     let args: Vec<String> = env::args().collect();
     match args.len() {
@@ -115,7 +121,7 @@ fn main() {
     let mut siv = cursive::default();
 
     let cb_sink = siv.cb_sink().clone();
-    let (key_sender, key_receiver) = bounded::<Event>(10);
+    let (key_sender, key_receiver) = bounded::<Event<u8>>(10);
     let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
 
     std::thread::spawn(move || {
