@@ -1,12 +1,16 @@
-use crate::chip::chip8::Chip8;
+#[macro_use]
+mod macros;
+mod instructions;
 
 use core::convert::TryFrom;
+use std::marker::PhantomData;
 
-use crate::chip::chip8::{
-    AddInstruction, CallInstruction, DrwInstruction, Executable, JmpInstruction, JmprInstruction,
+use crate::chip::chip8::opcodes::instructions::{
+    AddInstruction, CallInstruction, DrwInstruction, JmpInstruction, JmprInstruction,
     LdInstruction, LdrInstruction, LduInstruction, RegInstruction, RndInstruction, SeInstruction,
     SkInstruction, SneInstruction, SreInstruction, SrneInstruction, SysInstruction,
 };
+use crate::chip::chip8::Chip8;
 
 #[derive(Debug)]
 pub struct Opcode {
@@ -66,4 +70,31 @@ impl Opcode {
             _ => unimplemented!("Unsupported opcode"),
         };
     }
+}
+
+#[derive(Debug)]
+pub(crate) enum InstructionParsingError {
+    InvalidInstructionClass(u8, u8),
+}
+
+trait ExecutableOpcode {
+    fn execute(self, state: &mut Chip8);
+}
+
+pub(crate) struct InstructionWithAddress<T> {
+    instruction: PhantomData<T>,
+    address: u16,
+}
+
+pub(crate) struct InstructionWithOperands<T> {
+    instruction: PhantomData<T>,
+    op1: u8,
+    op2: u8,
+    op3: u8,
+}
+
+pub(crate) struct InstructionWithRegAndValue<T> {
+    instruction: PhantomData<T>,
+    reg: u8,
+    value: u8,
 }
