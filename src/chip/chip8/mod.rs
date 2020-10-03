@@ -1,10 +1,10 @@
-/// Chip 8 constants.
+/// CHIP-8 constants.
 mod constants;
 /// Cursive display output.
 pub mod cursive_display;
 /// Decoding of opcodes and their execution.
 mod opcodes;
-/// Convenience functions for modification of the Chip 8 state.
+/// Convenience functions for modification of the CHIP-8 state.
 mod util;
 
 #[cfg(test)]
@@ -23,7 +23,7 @@ use crate::chip::{
     Chip, LoadProgramError,
 };
 
-/// Represents the state of the Chip 8.
+/// Represents the state of the CHIP-8.
 pub struct Chip8 {
     /// 4096 bytes of main memory
     memory: [u8; 4096],
@@ -73,12 +73,12 @@ pub struct Chip8 {
 }
 
 impl Chip for Chip8 {
-    /// The pins can actually be addressed by using just half a byte. However,
-    /// we use a whole byte here and assert whether it is in the right range,
-    /// because it is more convenient to handle.
+    /// The CHIP-8's pins can actually be addressed by using just half a byte.
+    /// However, we use a whole byte here and assert whether it is in the right
+    /// range, because it is more convenient to handle.
     type PinAddress = u8;
 
-    /// A memory address is in the range between 0 and 4096 (exclusive). We
+    /// A CHIP-8 memory address is in the range between 0 and 4096 (exclusive). We
     /// represent it using a u16. This means we have to assert that it is
     /// in the right range whenever we set it.
     type MemoryAddress = u16;
@@ -139,9 +139,9 @@ impl Chip for Chip8 {
 }
 
 impl Chip8 {
-    /// Constructs a new Chip 8 and appropriately initializes all fields so that
+    /// Constructs a new CHIP-8 and appropriately initializes all fields so that
     /// it is ready for the first execution cycle. Essentially this means that
-    /// the program counter is set to 0x200 and the default Chip 8 charset is
+    /// the program counter is set to 0x200 and the default CHIP-8 charset is
     /// loaded at memory address `CHIP8_CHARSET_OFFSET`. Note that no program is
     /// loaded upon initialization.
     pub fn new() -> Self {
