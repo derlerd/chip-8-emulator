@@ -6,7 +6,7 @@ it relies on the [cursive](https://github.com/gyscos/cursive) text user interfac
 library.
 
 
-# Usage
+## Usage
 
 The emulator is written in Rust. For a guide on getting started with Rust, refer 
 to [this page](https://www.rust-lang.org/learn/get-started). Once you made it 
@@ -18,6 +18,22 @@ it can be run as follows.
 ```
 cargo run [path-to-chip-8-program]
 ```
+
+The emulator also comes with a test suite, testing all the commands. The
+test suite can be invoked via the following command.
+
+```
+cargo test
+```
+
+To build a binary, one can run `cargo build --release`.
+
+### Example
+
+Running `cargo run ./programs/hello-world.ch8` will execute the hello world 
+program distributed with this emulator and result in the output shown below.
+
+![Hello World](https://i.imgur.com/jtZRl7L.png)
 
 ## Key Mapping
 
