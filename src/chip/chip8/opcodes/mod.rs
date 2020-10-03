@@ -24,20 +24,20 @@ use crate::chip::chip8::{
 
 /// Represents a Chip 8 opcode. A Chip 8 opcode is two bytes long.  
 #[derive(Debug)]
-pub struct Opcode {
+pub(super) struct Opcode {
     /// The instruction class is the most significant nibble of the opcode.
     /// Note that we use a u8 to represent the instruction class here for
     /// convenience, but ensure that a valid opcode can only be constructed
     /// if the four most significant bits of the u8 are 0.
-    pub instruction_class: u8,
+    instruction_class: u8,
     /// The payload constitutes the remaining nibbles of the opcode.
-    pub payload: OpcodePayload,
+    payload: OpcodePayload,
 }
 
 /// Represents the payload of a Chip 8 opcode. That is the opcode without
 /// the most significant nibble.
 #[derive(Debug)]
-pub struct OpcodePayload {
+pub(super) struct OpcodePayload {
     /// The nibbles representing the payload. Note that we use the u8 type
     /// here for convenience, but ensure that valid payloads can only be
     /// constructed if the four most significant bits of the u8 are 0.
@@ -47,7 +47,7 @@ pub struct OpcodePayload {
 impl OpcodePayload {
     /// Interprets the opcode payload as an address in the range 0x000 to
     /// 0xFFF (inclusive) and returns an u16 containing this address.
-    pub fn address(&self) -> u16 {
+    fn address(&self) -> u16 {
         (self.bytes[0] as u16) << 8 | (self.bytes[1] as u16) << 4 | self.bytes[2] as u16
     }
 
@@ -55,21 +55,21 @@ impl OpcodePayload {
     /// address in range 0x0 - 0xF (inclusive) and the remaining nibbles
     /// as a value in range 0x00 - 0xFF (inclusive) and returns a tuple
     /// representing these values.
-    pub fn reg_and_value(&self) -> (u8, u8) {
+    fn reg_and_value(&self) -> (u8, u8) {
         (self.bytes[0], (self.bytes[1] << 4) | self.bytes[2])
     }
 
     /// Interprets the opcode payload as three operands, each of size
     /// one nibble, i.e., in range 0x0 - 0xF (inclusive) and returns
     /// a triple representing these values.
-    pub fn operands(&self) -> (u8, u8, u8) {
+    fn operands(&self) -> (u8, u8, u8) {
         (self.bytes[0], self.bytes[1], self.bytes[2])
     }
 }
 
 impl Opcode {
     /// Constructs a new `Opcode` given its byte representation.
-    pub fn new(opcode: &[u8; 2]) -> Opcode {
+    pub(super) fn new(opcode: &[u8; 2]) -> Opcode {
         Opcode {
             instruction_class: opcode[0] >> 4,
             payload: OpcodePayload {
@@ -120,7 +120,7 @@ impl From<Opcode> for Box<dyn ExecutableOpcode> {
 
 /// Captures errors when converting opcodes to their respective instruction object.
 #[derive(Debug)]
-pub(crate) enum InstructionParsingError {
+enum InstructionParsingError {
     /// The given
     InvalidInstructionClass(u8, u8),
 }
@@ -133,13 +133,13 @@ trait ExecutableOpcode {
 }
 
 /// Represents an opcode that expects the payload to be an address.
-pub(crate) struct InstructionWithAddress<T> {
+struct InstructionWithAddress<T> {
     instruction: PhantomData<T>,
     address: u16,
 }
 
 /// Represents an opcode that expects the payload to be three operands.
-pub(crate) struct InstructionWithOperands<T> {
+struct InstructionWithOperands<T> {
     instruction: PhantomData<T>,
     op1: u8,
     op2: u8,
@@ -147,7 +147,7 @@ pub(crate) struct InstructionWithOperands<T> {
 }
 
 /// Represents an opcode that expects the payload to be a register pointer and a value.
-pub(crate) struct InstructionWithRegAndValue<T> {
+struct InstructionWithRegAndValue<T> {
     instruction: PhantomData<T>,
     reg: u8,
     value: u8,
