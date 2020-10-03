@@ -9,9 +9,18 @@ use cursive::CbSink;
 use std::env;
 use std::time::Duration;
 
-use crate::chip::{chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay};
+use crate::chip::{
+    chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay, LoadProgramError,
+};
 
-/// Represents an even to be processed by the event loop. It is generic
+/// Error type for errors that occur during parsing the command line arguments
+/// and loading the program based on the arguments.
+enum Error {
+    InvalidUsage(String),
+    InvalidProgram(LoadProgramError),
+}
+
+/// Represents an event to be processed by the event loop. It is generic
 /// over the type representing the pressed key.
 enum Event<T> {
     /// Occurs when the key passed in the enum value was pressed.
@@ -93,27 +102,24 @@ where
 /// Loads a program based on the given arguments. If there are no arguments, it
 /// loads a simple default program, whereas it interprets the first argument as
 /// path to the program to load and attempts to load the program from there.
-fn load_program_from_args(chip8: &mut Chip8) {
+fn load_program_from_args(chip8: &mut Chip8) -> Result<usize, Error> {
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        1 => {
-            chip8.load_program_bytes(&[
-                0x63, 0, 0x64, 0, 0xF0, 0x0A, 0xF0, 0x29, 0xD3, 0x45, 0x12, 0x02,
-            ]);
-        }
-        _ => {
-            chip8
-                .load_program(&args[1])
-                .expect("Could not load program.");
-        }
-    };
+        1 => Err(Error::InvalidUsage(
+            "Expecting path to the program to load as command line argument.".to_string(),
+        )),
+        _ => chip8.load_program(&args[1]).map_err(Error::InvalidProgram),
+    }
 }
 
 /// Constructs the UI and spawns the event loop and the UI thread.
 fn main() {
     let mut chip8 = Chip8::new();
 
-    load_program_from_args(&mut chip8);
+    if let Err(e) = load_program_from_args(&mut chip8) {
+        println!("{}", e);
+        return;
+    }
 
     let mut siv = cursive::default();
 
@@ -181,4 +187,13 @@ fn main() {
     siv.add_layer(Display::default());
 
     siv.run();
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::InvalidUsage(message) => write!(f, "Usage: {}", message),
+            Error::InvalidProgram(error) => write!(f, "{}", error),
+        }
+    }
 }
