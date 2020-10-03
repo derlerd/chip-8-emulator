@@ -8,7 +8,7 @@ use crate::chip::chip8::{
 
 define_instruction_with_address!(Sys, SysInstruction, 0x0);
 impl ExecutableOpcode for SysInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         match self.address {
             0x0E0 => {
                 state.output_pins = [false; 64 * 32];

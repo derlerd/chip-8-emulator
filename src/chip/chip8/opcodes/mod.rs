@@ -4,7 +4,7 @@ mod arithmetic_and_logic;
 mod program_flow;
 mod system;
 
-use core::convert::TryFrom;
+use core::convert::{Into, TryFrom};
 use std::marker::PhantomData;
 
 use crate::chip::chip8::{
@@ -78,38 +78,43 @@ impl Opcode {
         }
     }
 
-    /// Executes `self` relative to the given state. Note that this
-    /// method will in-place modify the given state.
-    pub fn execute(self, mut state: &mut Chip8) {
-        fn execute<T>(opcode: Opcode, mut state: &mut Chip8)
+    pub(super) fn execute(self, mut state: &mut Chip8) {
+        let executable_opcode: Box<dyn ExecutableOpcode> = self.into();
+        executable_opcode.execute(&mut state);
+    }
+}
+
+impl From<Opcode> for Box<dyn ExecutableOpcode> {
+    fn from(opcode: Opcode) -> Box<dyn ExecutableOpcode> {
+        fn into_helper<T>(opcode: Opcode) -> Box<T>
         where
             T: ExecutableOpcode + TryFrom<Opcode>,
             <T as TryFrom<Opcode>>::Error: std::fmt::Debug,
         {
             // We can safely unwrap the converted instructions below as we know
             // that the instruction class will map the respective instruction.
-            T::try_from(opcode).unwrap().execute(&mut state);
+            Box::new(T::try_from(opcode).unwrap())
         }
 
-        match self.instruction_class {
-            0x0 => execute::<SysInstruction>(self, &mut state),
-            0x1 => execute::<JmpInstruction>(self, &mut state),
-            0x2 => execute::<CallInstruction>(self, &mut state),
-            0x3 => execute::<SeInstruction>(self, &mut state),
-            0x4 => execute::<SneInstruction>(self, &mut state),
-            0x5 => execute::<SreInstruction>(self, &mut state),
-            0x6 => execute::<LdrInstruction>(self, &mut state),
-            0x7 => execute::<AddInstruction>(self, &mut state),
-            0x8 => execute::<RegInstruction>(self, &mut state),
-            0x9 => execute::<SrneInstruction>(self, &mut state),
-            0xA => execute::<LdInstruction>(self, &mut state),
-            0xB => execute::<JmprInstruction>(self, &mut state),
-            0xC => execute::<RndInstruction>(self, &mut state),
-            0xD => execute::<DrwInstruction>(self, &mut state),
-            0xE => execute::<SkInstruction>(self, &mut state),
-            0xF => execute::<LduInstruction>(self, &mut state),
+        match opcode.instruction_class {
+            0x0 => into_helper::<SysInstruction>(opcode),
+            0x1 => into_helper::<JmpInstruction>(opcode),
+            0x2 => into_helper::<CallInstruction>(opcode),
+            0x3 => into_helper::<SeInstruction>(opcode),
+            0x4 => into_helper::<SneInstruction>(opcode),
+            0x5 => into_helper::<SreInstruction>(opcode),
+            0x6 => into_helper::<LdrInstruction>(opcode),
+            0x7 => into_helper::<AddInstruction>(opcode),
+            0x8 => into_helper::<RegInstruction>(opcode),
+            0x9 => into_helper::<SrneInstruction>(opcode),
+            0xA => into_helper::<LdInstruction>(opcode),
+            0xB => into_helper::<JmprInstruction>(opcode),
+            0xC => into_helper::<RndInstruction>(opcode),
+            0xD => into_helper::<DrwInstruction>(opcode),
+            0xE => into_helper::<SkInstruction>(opcode),
+            0xF => into_helper::<LduInstruction>(opcode),
             _ => unimplemented!("Unsupported opcode"),
-        };
+        }
     }
 }
 
@@ -124,7 +129,7 @@ pub(crate) enum InstructionParsingError {
 trait ExecutableOpcode {
     /// Executes `self` relative to the given state. Note that this
     /// method will in-place modify the given state.
-    fn execute(self, state: &mut Chip8);
+    fn execute(&self, state: &mut Chip8);
 }
 
 /// Represents an opcode that expects the payload to be an address.

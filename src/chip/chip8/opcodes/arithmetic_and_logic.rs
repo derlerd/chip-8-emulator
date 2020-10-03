@@ -13,7 +13,7 @@ use crate::chip::chip8::{
 
 define_instruction_with_reg_and_value!(Ldr, LdrInstruction, 0x6);
 impl ExecutableOpcode for LdrInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] = self.value;
         util::increment_program_counter(&mut state);
     }
@@ -21,7 +21,7 @@ impl ExecutableOpcode for LdrInstruction {
 
 define_instruction_with_reg_and_value!(Add, AddInstruction, 0x7);
 impl ExecutableOpcode for AddInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] =
             state.registers[self.reg as usize].wrapping_add(self.value);
         util::increment_program_counter(&mut state);
@@ -30,7 +30,7 @@ impl ExecutableOpcode for AddInstruction {
 
 define_instruction_with_operands!(Reg, RegInstruction, 0x8);
 impl ExecutableOpcode for RegInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         fn modify_registers(
             state: &mut Chip8,
             r1: u8,
@@ -77,7 +77,7 @@ impl ExecutableOpcode for RegInstruction {
 
 define_instruction_with_address!(Ld, LdInstruction, 0xA);
 impl ExecutableOpcode for LdInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         state.index = self.address;
         util::increment_program_counter(&mut state);
     }
@@ -85,7 +85,7 @@ impl ExecutableOpcode for LdInstruction {
 
 define_instruction_with_reg_and_value!(Rnd, RndInstruction, 0xC);
 impl ExecutableOpcode for RndInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         let mut rng = thread_rng();
         let sample = rng.gen_range(0, 255);
 
@@ -97,7 +97,7 @@ impl ExecutableOpcode for RndInstruction {
 
 define_instruction_with_operands!(Drw, DrwInstruction, 0xD);
 impl ExecutableOpcode for DrwInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         fn translate_gfx(x: u16, y: u16) -> usize {
             ((x % 64) + ((y % 32) * 64)) as usize
         }
@@ -139,7 +139,7 @@ impl ExecutableOpcode for DrwInstruction {
 
 define_instruction_with_reg_and_value!(Ldu, LduInstruction, 0xF);
 impl ExecutableOpcode for LduInstruction {
-    fn execute(self, mut state: &mut Chip8) {
+    fn execute(&self, mut state: &mut Chip8) {
         match self.value {
             0x07 => {
                 state.registers[self.reg as usize] = state.delay_timer;
