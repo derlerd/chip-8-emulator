@@ -11,12 +11,7 @@ use crate::chip::chip8::{
     util, Chip8,
 };
 
-pub(crate) struct Ldr;
-
-pub(crate) type LdrInstruction = InstructionWithRegAndValue<Ldr>;
-
-implement_try_from_reg_and_value!(LdrInstruction, 0x6);
-
+define_instruction_with_reg_and_value!(Ldr, LdrInstruction, 0x6);
 impl ExecutableOpcode for LdrInstruction {
     fn execute(self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] = self.value;
@@ -24,12 +19,7 @@ impl ExecutableOpcode for LdrInstruction {
     }
 }
 
-pub(crate) struct Add;
-
-pub(crate) type AddInstruction = InstructionWithRegAndValue<Add>;
-
-implement_try_from_reg_and_value!(AddInstruction, 0x7);
-
+define_instruction_with_reg_and_value!(Add, AddInstruction, 0x7);
 impl ExecutableOpcode for AddInstruction {
     fn execute(self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] =
@@ -38,12 +28,7 @@ impl ExecutableOpcode for AddInstruction {
     }
 }
 
-pub(crate) struct Reg;
-
-pub(crate) type RegInstruction = InstructionWithOperands<Reg>;
-
-implement_try_from_operands!(RegInstruction, 0x8);
-
+define_instruction_with_operands!(Reg, RegInstruction, 0x8);
 impl ExecutableOpcode for RegInstruction {
     fn execute(self, mut state: &mut Chip8) {
         fn modify_registers(
@@ -90,12 +75,7 @@ impl ExecutableOpcode for RegInstruction {
     }
 }
 
-pub(crate) struct Ld;
-
-pub(crate) type LdInstruction = InstructionWithAddress<Ld>;
-
-implement_try_from_address!(LdInstruction, 0xA);
-
+define_instruction_with_address!(Ld, LdInstruction, 0xA);
 impl ExecutableOpcode for LdInstruction {
     fn execute(self, mut state: &mut Chip8) {
         state.index = self.address;
@@ -103,12 +83,7 @@ impl ExecutableOpcode for LdInstruction {
     }
 }
 
-pub(crate) struct Rnd;
-
-pub(crate) type RndInstruction = InstructionWithRegAndValue<Rnd>;
-
-implement_try_from_reg_and_value!(RndInstruction, 0xC);
-
+define_instruction_with_reg_and_value!(Rnd, RndInstruction, 0xC);
 impl ExecutableOpcode for RndInstruction {
     fn execute(self, mut state: &mut Chip8) {
         let mut rng = thread_rng();
@@ -120,12 +95,7 @@ impl ExecutableOpcode for RndInstruction {
     }
 }
 
-pub(crate) struct Drw;
-
-pub(crate) type DrwInstruction = InstructionWithOperands<Drw>;
-
-implement_try_from_operands!(DrwInstruction, 0xD);
-
+define_instruction_with_operands!(Drw, DrwInstruction, 0xD);
 impl ExecutableOpcode for DrwInstruction {
     fn execute(self, mut state: &mut Chip8) {
         fn translate_gfx(x: u16, y: u16) -> usize {
@@ -167,12 +137,7 @@ impl ExecutableOpcode for DrwInstruction {
     }
 }
 
-pub(crate) struct Ldu;
-
-pub(crate) type LduInstruction = InstructionWithRegAndValue<Ldu>;
-
-implement_try_from_reg_and_value!(LduInstruction, 0xF);
-
+define_instruction_with_reg_and_value!(Ldu, LduInstruction, 0xF);
 impl ExecutableOpcode for LduInstruction {
     fn execute(self, mut state: &mut Chip8) {
         match self.value {

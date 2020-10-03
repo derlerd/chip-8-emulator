@@ -1,8 +1,12 @@
-/// Implements TryFrom<Opcode> for InstructionWithAddress<$name>. The implementation
-/// of try_from will return an error if the instruction class of the given opcode
+/// Defines a struct `$instruction` and a type alias `$name` for
+/// `InstructionWithAddress<$name>`. Implements `TryFrom<&Opcode>` for
+/// `InstructionWithAddress<$name>`. The implementation of `try_from`
+/// will return an error if the instruction class of the given opcode
 /// does not match the instruction class given in $instruction_class.
-macro_rules! implement_try_from_address {
-    ($name:ty, $instruction_class:expr) => {
+macro_rules! define_instruction_with_address {
+    ($instruction:ident, $name:ident, $instruction_class:expr) => {
+        pub(super) struct $instruction;
+        pub(super) type $name = InstructionWithAddress<$instruction>;
         impl TryFrom<Opcode> for $name {
             type Error = InstructionParsingError;
 
@@ -22,11 +26,15 @@ macro_rules! implement_try_from_address {
     };
 }
 
-/// Implements TryFrom<Opcode> for InstructionWithRegAndValue<$name>. The implementation
-/// of try_from will return an error if the instruction class of the given opcode does
-/// not match the instruction class given in $instruction_class.
-macro_rules! implement_try_from_reg_and_value {
-    ($name:ty, $instruction_class:expr) => {
+/// Defines a struct `$instruction` and a type alias `$name` for
+/// `InstructionWithRegAndValue<$name>`. Implements `TryFrom<&Opcode>` for
+/// `InstructionWithRegAndValue<$name>`. The implementation of `try_from`
+/// will return an error if the instruction class of the given opcode
+/// does not match the instruction class given in $instruction_class.
+macro_rules! define_instruction_with_reg_and_value {
+    ($instruction:ident, $name:ident, $instruction_class:expr) => {
+        pub(super) struct $instruction;
+        pub(super) type $name = InstructionWithRegAndValue<$instruction>;
         impl TryFrom<Opcode> for $name {
             type Error = InstructionParsingError;
 
@@ -48,11 +56,15 @@ macro_rules! implement_try_from_reg_and_value {
     };
 }
 
-/// Implements TryFrom<Opcode> for InstructionWithOperands<$name>. The implementation
-/// of try_from will return an error if the instruction class of the given opcode
+/// Defines a struct `$instruction` and a type alias `$name` for
+/// `InstructionWithOperands<$name>`. Implements `TryFrom<&Opcode>` for
+/// `InstructionWithOperands<$name>`. The implementation of `try_from`
+/// will return an error if the instruction class of the given opcode
 /// does not match the instruction class given in $instruction_class.
-macro_rules! implement_try_from_operands {
-    ($name:ty, $instruction_class:expr) => {
+macro_rules! define_instruction_with_operands {
+    ($instruction:ident, $name:ident, $instruction_class:expr) => {
+        pub(super) struct $instruction;
+        pub(super) type $name = InstructionWithOperands<$instruction>;
         impl TryFrom<Opcode> for $name {
             type Error = InstructionParsingError;
 

@@ -6,12 +6,7 @@ use crate::chip::chip8::{
     util, Chip8,
 };
 
-pub(crate) struct Sys;
-
-pub(crate) type SysInstruction = InstructionWithAddress<Sys>;
-
-implement_try_from_address!(SysInstruction, 0x0);
-
+define_instruction_with_address!(Sys, SysInstruction, 0x0);
 impl ExecutableOpcode for SysInstruction {
     fn execute(self, mut state: &mut Chip8) {
         match self.address {

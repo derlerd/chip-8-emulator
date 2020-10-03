@@ -9,24 +9,14 @@ use crate::chip::chip8::{
     util, Chip8,
 };
 
-pub(crate) struct Jmp;
-
-pub(crate) type JmpInstruction = InstructionWithAddress<Jmp>;
-
-implement_try_from_address!(JmpInstruction, 0x1);
-
+define_instruction_with_address!(Jmp, JmpInstruction, 0x1);
 impl ExecutableOpcode for JmpInstruction {
     fn execute(self, state: &mut Chip8) {
         state.program_counter = self.address;
     }
 }
 
-pub(crate) struct Call;
-
-pub(crate) type CallInstruction = InstructionWithAddress<Call>;
-
-implement_try_from_address!(CallInstruction, 0x2);
-
+define_instruction_with_address!(Call, CallInstruction, 0x2);
 impl ExecutableOpcode for CallInstruction {
     fn execute(self, state: &mut Chip8) {
         assert!(state.stack_pointer < 16, "Stack overflow");
@@ -36,12 +26,7 @@ impl ExecutableOpcode for CallInstruction {
     }
 }
 
-pub(crate) struct Se;
-
-pub(crate) type SeInstruction = InstructionWithRegAndValue<Se>;
-
-implement_try_from_reg_and_value!(SeInstruction, 0x3);
-
+define_instruction_with_reg_and_value!(Se, SeInstruction, 0x3);
 impl ExecutableOpcode for SeInstruction {
     fn execute(self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
@@ -51,12 +36,7 @@ impl ExecutableOpcode for SeInstruction {
     }
 }
 
-pub(crate) struct Sne;
-
-pub(crate) type SneInstruction = InstructionWithRegAndValue<Sne>;
-
-implement_try_from_reg_and_value!(SneInstruction, 0x4);
-
+define_instruction_with_reg_and_value!(Sne, SneInstruction, 0x4);
 impl ExecutableOpcode for SneInstruction {
     fn execute(self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
@@ -66,12 +46,7 @@ impl ExecutableOpcode for SneInstruction {
     }
 }
 
-pub(crate) struct Sre;
-
-pub(crate) type SreInstruction = InstructionWithOperands<Sre>;
-
-implement_try_from_operands!(SreInstruction, 0x5);
-
+define_instruction_with_operands!(Sre, SreInstruction, 0x5);
 impl ExecutableOpcode for SreInstruction {
     fn execute(self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
@@ -82,12 +57,7 @@ impl ExecutableOpcode for SreInstruction {
     }
 }
 
-pub(crate) struct Srne;
-
-pub(crate) type SrneInstruction = InstructionWithOperands<Srne>;
-
-implement_try_from_operands!(SrneInstruction, 0x9);
-
+define_instruction_with_operands!(Srne, SrneInstruction, 0x9);
 impl ExecutableOpcode for SrneInstruction {
     fn execute(self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
@@ -98,24 +68,14 @@ impl ExecutableOpcode for SrneInstruction {
     }
 }
 
-pub(crate) struct Jmpr;
-
-pub(crate) type JmprInstruction = InstructionWithAddress<Jmpr>;
-
-implement_try_from_address!(JmprInstruction, 0xB);
-
+define_instruction_with_address!(Jmpr, JmprInstruction, 0xB);
 impl ExecutableOpcode for JmprInstruction {
     fn execute(self, mut state: &mut Chip8) {
         state.program_counter = self.address.wrapping_add(state.registers[0] as u16);
     }
 }
 
-pub(crate) struct Sk;
-
-pub(crate) type SkInstruction = InstructionWithRegAndValue<Sk>;
-
-implement_try_from_reg_and_value!(SkInstruction, 0xE);
-
+define_instruction_with_reg_and_value!(Sk, SkInstruction, 0xE);
 impl ExecutableOpcode for SkInstruction {
     fn execute(self, mut state: &mut Chip8) {
         let skip = match self.value {
