@@ -8,7 +8,7 @@ use cursive::{
     CbSink, Printer, Vec2,
 };
 
-/// Represents the display of the Chip 8
+/// Represents the display of the CHIP-8
 pub struct Display {
     pixels: [bool; 64 * 32],
 }

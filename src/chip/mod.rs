@@ -1,4 +1,4 @@
-/// Chip8 impementation
+/// CHIP-8 implementation
 pub mod chip8;
 
 use cursive::CbSink;

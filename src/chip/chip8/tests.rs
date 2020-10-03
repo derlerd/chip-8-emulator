@@ -5,7 +5,7 @@ use crate::chip::Chip;
 use rand::{thread_rng, Rng};
 use std::convert::TryInto;
 
-/// Prepares a new Chip 8 with a program consisting of a single instruction
+/// Prepares a new CHIP-8 with a program consisting of a single instruction
 fn prepare_state_with_single_instruction(instruction: u16) -> Chip8 {
     let mut chip8 = Chip8::new();
     chip8.memory[0x200] = ((instruction & 0xFF00) >> 8) as u8;
@@ -13,7 +13,7 @@ fn prepare_state_with_single_instruction(instruction: u16) -> Chip8 {
     chip8
 }
 
-/// Obtains a new Chip 8 with the given `instruction` as the program. Applies `before_cycle` to
+/// Obtains a new CHIP-8 with the given `instruction` as the program. Applies `before_cycle` to
 /// the state, performs one cycle using the state after calling `before_cycle`, and applies
 /// `after_cycle` to the state after the cycle.
 fn do_cycle(instruction: u16, before_cycle: impl Fn(&mut Chip8), after_cycle: impl Fn(&mut Chip8)) {
