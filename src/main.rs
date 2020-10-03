@@ -89,7 +89,7 @@ where
             Ok(Event::SlowDown) => {
                 cycle_sleep += 5;
             }
-            Err(_) => {}
+            Err(_) => { /* do nothing */ }
         };
 
         chip.cycle();

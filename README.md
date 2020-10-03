@@ -31,5 +31,4 @@ mapping below.
 
 Given that OS X requires special permissions to listen to key-release events, we decided to
 work around this by _mapping the space bar as a key-release bar_. So once a key is pressed
-it will remain set until the space bar is hit. Pressing the escape button will quit the
-program.
+it will remain set until the space bar is hit. Pressing escape will quit the emulator.
