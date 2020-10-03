@@ -58,10 +58,7 @@ where
 {
     let mut cycle_sleep = 1;
     loop {
-        match io_channels
-            .key_receiver
-            .recv_timeout(Duration::from_millis(0))
-        {
+        match io_channels.key_receiver.try_recv() {
             Ok(Event::Key(key)) => {
                 chip.set_input_pin(key, true);
             }
