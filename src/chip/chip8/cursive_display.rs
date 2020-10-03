@@ -16,6 +16,7 @@ pub struct Display {
 impl Display {
     /// Creates a new display from a slice.
     pub fn new(pixels: &[bool]) -> Self {
+        assert_eq!(pixels.len(), 64 * 32);
         let mut tmp = [false; 64 * 32];
         tmp.copy_from_slice(&pixels[..]);
         Display { pixels: tmp }
