@@ -11,6 +11,7 @@ use crate::chip::chip8::{
 
 define_instruction_with_address!(Jmp, JmpInstruction, 0x1);
 impl ExecutableOpcode for JmpInstruction {
+    /// Opcode of the form `0x1XYZ` (JMP). Sets `state.program_counter` to `XYZ`.
     fn execute(&self, state: &mut Chip8) {
         state.program_counter = self.address;
     }
@@ -18,6 +19,7 @@ impl ExecutableOpcode for JmpInstruction {
 
 define_instruction_with_address!(Call, CallInstruction, 0x2);
 impl ExecutableOpcode for CallInstruction {
+    /// Opcode of the form `0x2XYZ` (CALL). Calls the routine at `XYZ`.
     fn execute(&self, state: &mut Chip8) {
         assert!(state.stack_pointer < 16, "Stack overflow");
         state.stack[state.stack_pointer as usize] = state.program_counter;
@@ -28,6 +30,7 @@ impl ExecutableOpcode for CallInstruction {
 
 define_instruction_with_reg_and_value!(Se, SeInstruction, 0x3);
 impl ExecutableOpcode for SeInstruction {
+    /// Opcode of the form `0x3XYZ` (SE). Skip the next instruction if `state.registers[X] == YZ`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
             state.registers[instruction.reg as usize] == instruction.value
@@ -38,6 +41,7 @@ impl ExecutableOpcode for SeInstruction {
 
 define_instruction_with_reg_and_value!(Sne, SneInstruction, 0x4);
 impl ExecutableOpcode for SneInstruction {
+    /// Opcode of the form `0x4XYZ` (SNE). Skip the next instruction if `state.registers[X] != YZ`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
             state.registers[instruction.reg as usize] != instruction.value
@@ -48,6 +52,7 @@ impl ExecutableOpcode for SneInstruction {
 
 define_instruction_with_operands!(Sre, SreInstruction, 0x5);
 impl ExecutableOpcode for SreInstruction {
+    /// Opcode of the form `0x5XY0` (SRE). Skip the next instruction if `state.registers[X] == state.registers[y]`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
             assert_eq!(instruction.op3, 0, "Unsupported opcode");
@@ -59,6 +64,7 @@ impl ExecutableOpcode for SreInstruction {
 
 define_instruction_with_operands!(Srne, SrneInstruction, 0x9);
 impl ExecutableOpcode for SrneInstruction {
+    /// Opcode of the form `0x9XY0` (SRNE). Skip the next instruction if `state.registers[X] != state.registers[Y]`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
             assert_eq!(instruction.op3, 0, "Unsupported opcode");
@@ -70,6 +76,8 @@ impl ExecutableOpcode for SrneInstruction {
 
 define_instruction_with_address!(Jmpr, JmprInstruction, 0xB);
 impl ExecutableOpcode for JmprInstruction {
+    /// Opcode of the form `0xBXYZ` (JMPR). Sets `state.program_counter` to `XYZ + state.registers[0]`
+    /// (where the addition wraps around if an overflow occurs).
     fn execute(&self, mut state: &mut Chip8) {
         state.program_counter = self.address.wrapping_add(state.registers[0] as u16);
     }
@@ -77,6 +85,13 @@ impl ExecutableOpcode for JmprInstruction {
 
 define_instruction_with_reg_and_value!(Sk, SkInstruction, 0xE);
 impl ExecutableOpcode for SkInstruction {
+    /// Opcode of the form `0xEXYZ` (SK). Groups skip operation related to keys.
+    ///
+    /// - If `YZ == 9E`, it skips the next instruction if the key stored in `state.registers[X]`
+    ///   is pressed.
+    ///
+    /// - If `YZ == A1`, it skips the next instruction if the key stored in `state.registers[X]`
+    ///   is not pressed.
     fn execute(&self, mut state: &mut Chip8) {
         let skip = match self.value {
             0x9E => state.input_pins[state.registers[self.reg as usize] as usize],

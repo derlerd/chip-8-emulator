@@ -13,6 +13,7 @@ use crate::chip::chip8::{
 
 define_instruction_with_reg_and_value!(Ldr, LdrInstruction, 0x6);
 impl ExecutableOpcode for LdrInstruction {
+    /// Opcode of the form `0x6XYZ` (LDR). Load a value `YZ` into `state.registers[X]`.
     fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] = self.value;
         util::increment_program_counter(&mut state);
@@ -21,6 +22,7 @@ impl ExecutableOpcode for LdrInstruction {
 
 define_instruction_with_reg_and_value!(Add, AddInstruction, 0x7);
 impl ExecutableOpcode for AddInstruction {
+    /// Opcode of the form `0x7XYZ` (ADD). Add value `YZ` into `state.registers[X]`.    
     fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] =
             state.registers[self.reg as usize].wrapping_add(self.value);
@@ -30,6 +32,32 @@ impl ExecutableOpcode for AddInstruction {
 
 define_instruction_with_operands!(Reg, RegInstruction, 0x8);
 impl ExecutableOpcode for RegInstruction {
+    /// Opcode of the form `0x8XYZ` (REG). Applies operation determined by `Z` to `state.registers[X]`
+    /// and `state.registers[Y]` and stores the result in `state.registers[X]`.
+    ///
+    /// - If `Z == 0x0`, it sets `state.registers[X] = state.registers[Y]`
+    ///
+    /// - If `Z == 0x1`, it sets `state.registers[X] = state.registers[X] | state.registers[Y]`
+    ///
+    /// - If `Z == 0x2`, it sets `state.registers[X] = state.registers[X] & state.registers[Y]`
+    ///
+    /// - If `Z == 0x3`, it sets `state.registers[X] = state.registers[X] ^ state.registers[Y]`
+    ///
+    /// - If `Z == 0x4`, it sets `state.registers[X] = state.registers[X] + state.registers[Y]`;
+    ///   `state.registers[0xF]` is set to `1` if there is an overflow, and to `0` otherwise.
+    ///
+    /// - If `Z == 0x5`, it sets `state.registers[X] = state.registers[X] - state.registers[Y]`;
+    ///   `state.registers[0xF]` is set to `0` if there is an underflow, and to `1` otherwise.
+    ///
+    /// - If `Z == 0x6`, it sets `state.registers[X] = state.registers[X] >> 1`; `state.registers[0xF]`
+    ///   is set to `1` if the shifted out bit is set, and to `0` otherwise.
+    ///
+    /// - If `Z == 0x7`, it sets `state.registers[X] = state.registers[Y] - state.registers[X]`;
+    ///   `state.registers[0xF]` is set to `0` if there is an underflow, and to `1` otherwise.
+    ///
+    /// - If `Z == 0xE`, it sets `state.registers[X] = state.registers[X] << 1`; `state.registers[0xF]`
+    ///   is set to `1` if the shifted out bit is set, and to `0` otherwise.
+    ///
     fn execute(&self, mut state: &mut Chip8) {
         fn modify_registers(
             state: &mut Chip8,
@@ -77,6 +105,7 @@ impl ExecutableOpcode for RegInstruction {
 
 define_instruction_with_address!(Ld, LdInstruction, 0xA);
 impl ExecutableOpcode for LdInstruction {
+    /// Opcode of the form `0xAXYZ` (LD). Loads `XYZ` into `state.index`.
     fn execute(&self, mut state: &mut Chip8) {
         state.index = self.address;
         util::increment_program_counter(&mut state);
@@ -85,6 +114,8 @@ impl ExecutableOpcode for LdInstruction {
 
 define_instruction_with_reg_and_value!(Rnd, RndInstruction, 0xC);
 impl ExecutableOpcode for RndInstruction {
+    /// Opcode of the form `0xCXYZ` (RND). Generates a random value `v`, and sets
+    /// `state.registers[X] = v & YZ.
     fn execute(&self, mut state: &mut Chip8) {
         let mut rng = thread_rng();
         let sample = rng.gen_range(0, 255);
@@ -97,6 +128,15 @@ impl ExecutableOpcode for RndInstruction {
 
 define_instruction_with_operands!(Drw, DrwInstruction, 0xD);
 impl ExecutableOpcode for DrwInstruction {
+    /// Opcode of the form `0xDXYZ` (DRW). Draws a sprite to the display.
+    ///
+    /// - Drawing a pixel means flipping the pixel on the display.
+    /// - The sprite is drawn at coordinate (`X`, `Y`) on the display.
+    /// - A sprite is of width `8` pixels and of height `Z` pixels.
+    /// - The bits to be written are taken from the memory starting at the address
+    ///   given in the index register.
+    /// - `state.registers[0xF]` is set to `1` if any pixel is flipped to `0`, and
+    ///   to `0` otherwise.
     fn execute(&self, mut state: &mut Chip8) {
         fn translate_gfx(x: u16, y: u16) -> usize {
             ((x % 64) + ((y % 32) * 64)) as usize
@@ -139,6 +179,32 @@ impl ExecutableOpcode for DrwInstruction {
 
 define_instruction_with_reg_and_value!(Ldu, LduInstruction, 0xF);
 impl ExecutableOpcode for LduInstruction {
+    /// Opcode of the form `0xFXYZ` (LDU). Groups various load and store operations.
+    /// `YZ` determines which operation is executed relative to `state`.
+    ///
+    /// - If `YZ == 0x07`, set `state.registers[X] = delay_timer`.
+    ///
+    /// - If `YZ == 0x0A`, await key press and store in `state.registers[X]`.
+    ///
+    /// - If `YZ == 0x15`, set `state.delay_timer = state.registers[X]`.
+    ///
+    /// - If `YZ == 0x18`, set `state.sound_timer = state.registers[X]`.
+    ///
+    /// - If `YZ == 0x1E`, set `state.index += state.registers[X]` (where the addition will wrap
+    ///   around on overflow).
+    ///
+    /// - If `YZ == 0x29`, load the address of the character in `state.registers[X]` into `index`.
+    ///
+    /// - If `YZ == 0x33`, store the binary coded decimal representation of `state.registers[X]` in
+    ///   `state.memory[index]`-`state.memory[index+2], where the most significant digit goes into
+    ///   `state.memory[index]`.
+    ///
+    /// - If `YZ == 0x55`, store `state.registers[0]` to `state.registers[X]` in memory starting
+    ///   at `state.index`.
+    ///
+    /// - If `YZ == 0x65`, load `state.registers[0]` to `state.registers[X]` from memory starting
+    ///   at `state.index`.
+    ///
     fn execute(&self, mut state: &mut Chip8) {
         match self.value {
             0x07 => {
