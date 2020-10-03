@@ -113,7 +113,7 @@ impl From<Opcode> for Box<dyn ExecutableOpcode> {
             0xD => into_helper::<DrwInstruction>(opcode),
             0xE => into_helper::<SkInstruction>(opcode),
             0xF => into_helper::<LduInstruction>(opcode),
-            _ => unimplemented!("Unsupported opcode"),
+            _ => unimplemented!("Unsupported opcode: {}", opcode),
         }
     }
 }

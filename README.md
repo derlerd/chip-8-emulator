@@ -5,12 +5,11 @@ This is an implementation of an emulator of a chip supporting the CHIP-8
 it relies on the [cursive](https://github.com/gyscos/cursive) text user interface 
 library.
 
-
-## Usage
-
 The emulator is written in Rust. For a guide on getting started with Rust, refer 
 to [this page](https://www.rust-lang.org/learn/get-started). Once you made it 
 through the instructions there you should be able to run the emulator.
+
+## Usage
 
 The emulator takes the path to the CHIP-8 program to be executed. For example,
 it can be run as follows.
@@ -19,8 +18,8 @@ it can be run as follows.
 cargo run [path-to-chip-8-program]
 ```
 
-The emulator also comes with a test suite, testing all the commands. The
-test suite can be invoked via the following command.
+The emulator also comes with a test suite. It can be invoked via the following 
+command.
 
 ```
 cargo test
