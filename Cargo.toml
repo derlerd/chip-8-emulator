@@ -8,6 +8,6 @@ edition = "2018"
 
 [dependencies]
 
-rand="0.3.0"
-cursive = { git = "https://github.com/gyscos/cursive" }
+rand="0.7.3"
 crossbeam-channel="0.4.4"
+cursive = { git = "https://github.com/gyscos/cursive" }
