@@ -16,7 +16,7 @@ pub enum LoadProgramError {
 /// instructions to callback sink of the cursive terminal UI
 /// framework.
 pub trait ChipWithCursiveDisplay {
-    /// Gives the implementation the possibility to send instructions to 
+    /// Gives the implementation the possibility to send instructions to
     /// update the UI to `gfx_sink`.
     fn update_ui(&mut self, gfx_sink: &CbSink);
 }

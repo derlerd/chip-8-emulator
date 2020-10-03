@@ -6,7 +6,7 @@ pub const CHIP8_TIMER_RESOLUTION: u8 = 10;
 /// The maximum size of a CHIP-8 program in bytes.
 pub const CHIP8_MAX_PROGRAM_SIZE: u16 = 3584;
 
-/// The offset at which the predefined CHIP-8 charset is loaded into 
+/// The offset at which the predefined CHIP-8 charset is loaded into
 /// the memory.
 pub const CHIP8_CHARSET_OFFSET: u16 = 0;
 
