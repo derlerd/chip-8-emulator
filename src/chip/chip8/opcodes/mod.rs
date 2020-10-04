@@ -79,16 +79,16 @@ impl Opcode {
     }
 
     pub(super) fn execute(self, mut state: &mut Chip8) {
-        let executable_opcode: Box<dyn ExecutableOpcode> = self.into();
+        let executable_opcode: Box<dyn Instruction> = self.into();
         executable_opcode.execute(&mut state);
     }
 }
 
-impl From<Opcode> for Box<dyn ExecutableOpcode> {
-    fn from(opcode: Opcode) -> Box<dyn ExecutableOpcode> {
+impl From<Opcode> for Box<dyn Instruction> {
+    fn from(opcode: Opcode) -> Box<dyn Instruction> {
         fn into_helper<T>(opcode: Opcode) -> Box<T>
         where
-            T: ExecutableOpcode + TryFrom<Opcode>,
+            T: Instruction + TryFrom<Opcode>,
             <T as TryFrom<Opcode>>::Error: std::fmt::Debug,
         {
             // We can safely unwrap the converted instructions below as we know
@@ -125,9 +125,9 @@ enum InstructionParsingError {
     InvalidInstructionClass(u8, u8),
 }
 
-/// Represents an opcode that can be executed.
-trait ExecutableOpcode {
-    /// Executes `self` relative to the given state. Note that this
+/// Represents an instruction that can be executed.
+trait Instruction {
+    /// Executes `self` relative to the given `state`. Note that this
     /// method will in-place modify the given state.
     fn execute(&self, state: &mut Chip8);
 }

@@ -5,14 +5,14 @@ use std::marker::PhantomData;
 use crate::chip::chip8::{
     constants::CHIP8_CHARSET_OFFSET,
     opcodes::{
-        ExecutableOpcode, InstructionParsingError, InstructionWithAddress, InstructionWithOperands,
+        Instruction, InstructionParsingError, InstructionWithAddress, InstructionWithOperands,
         InstructionWithRegAndValue, Opcode,
     },
     util, Chip8,
 };
 
 define_instruction_with_reg_and_value!(Ldr, LdrInstruction, 0x6);
-impl ExecutableOpcode for LdrInstruction {
+impl Instruction for LdrInstruction {
     /// Opcode of the form `0x6XYZ` (LDR). Load a value `YZ` into `state.registers[X]`.
     fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] = self.value;
@@ -21,7 +21,7 @@ impl ExecutableOpcode for LdrInstruction {
 }
 
 define_instruction_with_reg_and_value!(Add, AddInstruction, 0x7);
-impl ExecutableOpcode for AddInstruction {
+impl Instruction for AddInstruction {
     /// Opcode of the form `0x7XYZ` (ADD). Add value `YZ` into `state.registers[X]`.    
     fn execute(&self, mut state: &mut Chip8) {
         state.registers[self.reg as usize] =
@@ -31,7 +31,7 @@ impl ExecutableOpcode for AddInstruction {
 }
 
 define_instruction_with_operands!(Reg, RegInstruction, 0x8);
-impl ExecutableOpcode for RegInstruction {
+impl Instruction for RegInstruction {
     /// Opcode of the form `0x8XYZ` (REG). Applies operation determined by `Z` to `state.registers[X]`
     /// and `state.registers[Y]` and stores the result in `state.registers[X]`.
     ///
@@ -104,7 +104,7 @@ impl ExecutableOpcode for RegInstruction {
 }
 
 define_instruction_with_address!(Ld, LdInstruction, 0xA);
-impl ExecutableOpcode for LdInstruction {
+impl Instruction for LdInstruction {
     /// Opcode of the form `0xAXYZ` (LD). Loads `XYZ` into `state.index`.
     fn execute(&self, mut state: &mut Chip8) {
         state.index = self.address;
@@ -113,7 +113,7 @@ impl ExecutableOpcode for LdInstruction {
 }
 
 define_instruction_with_reg_and_value!(Rnd, RndInstruction, 0xC);
-impl ExecutableOpcode for RndInstruction {
+impl Instruction for RndInstruction {
     /// Opcode of the form `0xCXYZ` (RND). Generates a random value `v`, and sets
     /// `state.registers[X] = v & YZ.
     fn execute(&self, mut state: &mut Chip8) {
@@ -127,7 +127,7 @@ impl ExecutableOpcode for RndInstruction {
 }
 
 define_instruction_with_operands!(Drw, DrwInstruction, 0xD);
-impl ExecutableOpcode for DrwInstruction {
+impl Instruction for DrwInstruction {
     /// Opcode of the form `0xDXYZ` (DRW). Draws a sprite to the display.
     ///
     /// - Drawing a pixel means flipping the pixel on the display.
@@ -178,7 +178,7 @@ impl ExecutableOpcode for DrwInstruction {
 }
 
 define_instruction_with_reg_and_value!(Ldu, LduInstruction, 0xF);
-impl ExecutableOpcode for LduInstruction {
+impl Instruction for LduInstruction {
     /// Opcode of the form `0xFXYZ` (LDU). Groups various load and store operations.
     /// `YZ` determines which operation is executed relative to `state`.
     ///

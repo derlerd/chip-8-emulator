@@ -2,12 +2,12 @@ use core::convert::TryFrom;
 use std::marker::PhantomData;
 
 use crate::chip::chip8::{
-    opcodes::{ExecutableOpcode, InstructionParsingError, InstructionWithAddress, Opcode},
+    opcodes::{Instruction, InstructionParsingError, InstructionWithAddress, Opcode},
     util, Chip8,
 };
 
 define_instruction_with_address!(Sys, SysInstruction, 0x0);
-impl ExecutableOpcode for SysInstruction {
+impl Instruction for SysInstruction {
     /// Opcode of the form `0x0XYZ` (SYS). Groups various system instructions.
     ///
     /// - If `XYZ == 0x0E0`, it clears the display.
