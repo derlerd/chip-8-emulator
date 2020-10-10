@@ -1,15 +1,9 @@
-//! An implementation of a CHIP-8 emulator. The implementation follows to instruction set  
-//! described [here](https://en.wikipedia.org/wiki/CHIP-8#Opcode_table), and is based on
-//! the excellent tutorial [here](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/).
-//! For graphical output it relies on the cursive text user interface library.
-mod chip;
-
 use crossbeam_channel::{bounded, Receiver, Sender};
 use cursive::CbSink;
 use std::env;
 use std::time::Duration;
 
-use crate::chip::{
+use chip_8_emulator::chip::{
     chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay, LoadProgramError,
 };
 
