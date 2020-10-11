@@ -6,9 +6,6 @@ use cursive::CbSink;
 /// Error type for errors that occur during loading the program
 #[derive(Debug)]
 pub enum LoadProgramError {
-    CouldNotOpenFile(String),
-    CouldNotReadMetadata(String),
-    CouldNotReadFile(String),
     ProgramTooLarge(usize),
 }
 
@@ -28,9 +25,9 @@ pub trait Chip {
     /// The type used for memory addresses
     type MemoryAddress;
 
-    /// Mutates self in that it loads the program from path and stores
-    /// it into the chip's memory.
-    fn load_program(&mut self, path: &str) -> Result<usize, LoadProgramError>;
+    /// Mutates self in that it loads the program from the given slice and
+    /// stores it into the chip's memory.
+    fn load_program(&mut self, bytes: &[u8]) -> Result<(), LoadProgramError>;
 
     /// Preforms an execution cycle. It mutates self so that its state
     /// corresponds to the state after the execution cycle.
@@ -52,15 +49,6 @@ pub trait Chip {
 impl std::fmt::Display for LoadProgramError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            LoadProgramError::CouldNotOpenFile(message) => {
-                write!(f, "Could not open file: {:?}", message)
-            }
-            LoadProgramError::CouldNotReadMetadata(message) => {
-                write!(f, "Could not read metadata: {:?}", message)
-            }
-            LoadProgramError::CouldNotReadFile(message) => {
-                write!(f, "Could not read file: {:?}", message)
-            }
             LoadProgramError::ProgramTooLarge(size) => write!(
                 f,
                 "Program is too large. Maximum program size is 3584 bytes. Got {} bytes.",

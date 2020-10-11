@@ -1,6 +1,9 @@
 use crossbeam_channel::{bounded, Receiver, Sender};
 use cursive::CbSink;
 use std::env;
+use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::time::Duration;
 
 use chip_8_emulator::chip::{
@@ -11,6 +14,9 @@ use chip_8_emulator::chip::{
 /// and loading the program based on the arguments.
 enum Error {
     InvalidUsage(String),
+    CouldNotOpenFile(String),
+    CouldNotReadMetadata(String),
+    CouldNotReadFile(String),
     InvalidProgram(LoadProgramError),
 }
 
@@ -96,14 +102,29 @@ where
 /// Loads a program based on the given arguments. If there are no arguments, it
 /// loads a simple default program, whereas it interprets the first argument as
 /// path to the program to load and attempts to load the program from there.
-fn load_program_from_args(chip8: &mut Chip8) -> Result<usize, Error> {
+fn load_program_from_args(chip8: &mut Chip8) -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     match args.len() {
         1 => Err(Error::InvalidUsage(
             "Expecting path to the program to load as command line argument.".to_string(),
         )),
-        _ => chip8.load_program(&args[1]).map_err(Error::InvalidProgram),
+        _ => {
+            let program_bytes = load_program_helper(&args[1])?;
+            chip8
+                .load_program(&program_bytes)
+                .map_err(Error::InvalidProgram)
+        }
     }
+}
+
+fn load_program_helper(path: &str) -> Result<Vec<u8>, Error> {
+    let mut file = File::open(path).map_err(|_| Error::CouldNotOpenFile(path.to_string()))?;
+    let md = fs::metadata(path).map_err(|_| Error::CouldNotReadMetadata(path.to_string()))?;
+    let mut buffer = vec![0; md.len() as usize];
+    file.read(&mut buffer)
+        .map_err(|_| Error::CouldNotReadFile(path.to_string()))?;
+
+    Ok(buffer)
 }
 
 /// Constructs the UI and spawns the event loop and the UI thread.
@@ -187,6 +208,11 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Error::InvalidUsage(message) => write!(f, "Usage: {}", message),
+            Error::CouldNotOpenFile(message) => write!(f, "Could not open file: {:?}", message),
+            Error::CouldNotReadMetadata(message) => {
+                write!(f, "Could not read metadata: {:?}", message)
+            }
+            Error::CouldNotReadFile(message) => write!(f, "Could not read file: {:?}", message),
             Error::InvalidProgram(error) => write!(f, "{}", error),
         }
     }

@@ -10,10 +10,6 @@ mod util;
 #[cfg(test)]
 mod tests;
 
-use std::fs;
-use std::fs::File;
-use std::io::Read;
-
 use crate::chip::{
     chip8::constants::{
         CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_MAX_PROGRAM_SIZE,
@@ -83,22 +79,16 @@ impl Chip for Chip8 {
     /// in the right range whenever we set it.
     type MemoryAddress = u16;
 
-    fn load_program(&mut self, path: &str) -> Result<usize, LoadProgramError> {
-        let mut file =
-            File::open(path).map_err(|_| LoadProgramError::CouldNotOpenFile(path.to_string()))?;
-        let md = fs::metadata(path)
-            .map_err(|_| LoadProgramError::CouldNotReadMetadata(path.to_string()))?;
-        let mut buffer = vec![0; md.len() as usize];
-        file.read(&mut buffer)
-            .map_err(|_| LoadProgramError::CouldNotReadFile(path.to_string()))?;
-
-        if buffer.len() > (CHIP8_MAX_PROGRAM_SIZE as usize) {
-            return Err(LoadProgramError::ProgramTooLarge(buffer.len()));
+    fn load_program(&mut self, program: &[u8]) -> Result<(), LoadProgramError> {
+        if program.len() > (CHIP8_MAX_PROGRAM_SIZE as usize) {
+            return Err(LoadProgramError::ProgramTooLarge(program.len()));
         }
 
-        self.load_program_bytes(&buffer);
+        for i in 0..program.len() {
+            self.set_memory_byte(program[i], (0x200 + i) as u16);
+        }
 
-        Ok(md.len() as usize)
+        Ok(())
     }
 
     fn cycle(&mut self) {
@@ -177,16 +167,6 @@ impl Chip8 {
             self.memory[self.program_counter as usize],
             self.memory[(self.program_counter + 1) as usize],
         ])
-    }
-
-    /// Convenience method to load a program from a slice.
-    ///
-    /// # Panics
-    /// In case `program` is too long, i.e., so that loading it would overflow the memory buffer.
-    pub fn load_program_bytes(&mut self, program: &[u8]) {
-        for i in 0..program.len() {
-            self.set_memory_byte(program[i], (0x200 + i) as u16);
-        }
     }
 
     /// Sets a memory byte
