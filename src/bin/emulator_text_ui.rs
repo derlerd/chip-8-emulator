@@ -1,4 +1,4 @@
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver};
 use cursive::CbSink;
 use std::env;
 use std::fs;
@@ -52,10 +52,6 @@ struct EventLoopChannels<T> {
 
     /// The channel on which the Events are received.
     key_receiver: Receiver<Event<T>>,
-
-    /// A channel to report that the thread has completed
-    /// shutdown.
-    shutdown_sender: Sender<()>,
 }
 
 /// The event loop. Constantly loops over (1) process event if there
@@ -75,10 +71,6 @@ where
                 chip.reset_input_pins();
             }
             Ok(Event::Quit) => {
-                io_channels
-                    .shutdown_sender
-                    .send(())
-                    .expect("Failed to orderly shutdown.");
                 return;
             }
             Ok(Event::SpeedUp) => {
@@ -140,15 +132,13 @@ fn main() {
 
     let cb_sink = siv.cb_sink().clone();
     let (key_sender, key_receiver) = bounded::<Event<u8>>(10);
-    let (shutdown_sender, shutdown_receiver) = bounded::<()>(1);
 
-    std::thread::spawn(move || {
+    let event_loop_handle = std::thread::spawn(move || {
         event_loop(
             chip8,
             EventLoopChannels {
                 gfx_sender: cb_sink,
                 key_receiver: key_receiver,
-                shutdown_sender: shutdown_sender,
             },
         );
     });
@@ -156,7 +146,6 @@ fn main() {
     let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Esc, move |s| {
         sender.send(Event::Quit).unwrap();
-        shutdown_receiver.recv().expect("Orderly shutdown failed");
         s.quit();
     });
 
@@ -202,6 +191,10 @@ fn main() {
     siv.add_layer(Display::default());
 
     siv.run();
+
+    event_loop_handle
+        .join()
+        .expect("Could not join event loop handle");
 }
 
 impl std::fmt::Display for Error {
