@@ -4,7 +4,7 @@ use cursive::{
     direction::Direction,
     event::{Event, EventResult},
     theme::{BaseColor, Color, ColorStyle},
-    view::View,
+    view::{View, CannotFocus},
     CbSink, Printer, Vec2,
 };
 
@@ -47,8 +47,8 @@ impl View for Display {
         );
     }
 
-    fn take_focus(&mut self, _: Direction) -> bool {
-        true
+    fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus> {
+        Ok(EventResult::Ignored)
     }
 
     fn on_event(&mut self, _event: Event) -> EventResult {

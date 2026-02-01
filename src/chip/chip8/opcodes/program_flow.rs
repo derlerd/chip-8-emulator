@@ -78,7 +78,7 @@ define_instruction_with_address!(Jmpr, JmprInstruction, 0xB);
 impl Instruction for JmprInstruction {
     /// Opcode of the form `0xBXYZ` (JMPR). Sets `state.program_counter` to `XYZ + state.registers[0]`
     /// (where the addition wraps around if an overflow occurs).
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         state.program_counter = self.address.wrapping_add(state.registers[0] as u16);
     }
 }

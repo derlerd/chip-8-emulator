@@ -2,7 +2,7 @@ use crate::chip::chip8::Chip8;
 use crate::chip::chip8::CHIP8_CHARSET_OFFSET;
 use crate::chip::Chip;
 
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use std::convert::TryInto;
 
 /// Prepares a new CHIP-8 with a program consisting of a single instruction
@@ -140,11 +140,11 @@ fn test_skip_if_not_equal() {
 }
 
 fn test_skip_if_reg(base_instruction: u16, equal: bool) {
-    let mut rng = thread_rng();
-    let r1: usize = rng.gen_range(0, 15);
-    let mut r2: usize = rng.gen_range(0, 15);
+    let mut rng = rng();
+    let r1: usize = rng.random_range(0..=15);
+    let mut r2: usize = rng.random_range(0..=15);
     while r1 == r2 {
-        r2 = rng.gen_range(0, 15);
+        r2 = rng.random_range(0..=15);
     }
 
     let instruction: u16 = base_instruction | (r1 << 8) as u16 | (r2 << 4) as u16;
@@ -229,9 +229,9 @@ fn test_add_to_register() {
 fn test_set_register_to_f_of_registers(base_instruction: u16, f: fn(u8, u8) -> (u8, Option<bool>)) {
     for r1 in 0x0..0xF {
         for r2 in 0x0..0xF {
-            let mut rng = thread_rng();
-            let value_r1: u8 = rng.gen_range(0, 0xFF);
-            let value_r2: u8 = rng.gen_range(0, 0xFF);
+            let mut rng = rng();
+            let value_r1: u8 = rng.random_range(0..=0xFF);
+            let value_r2: u8 = rng.random_range(0..=0xFF);
 
             let instruction: u16 = base_instruction | (r1 << 8) as u16 | (r2 << 4) as u16;
             do_cycle(
@@ -545,9 +545,9 @@ fn test_bcd() {
 #[test]
 fn test_reg_dump_load() {
     let mut register_values = [0; 16];
-    let mut rng = thread_rng();
+    let mut rng = rng();
     for i in 0x0..=0xF {
-        register_values[i] = rng.gen_range(0, 255);
+        register_values[i] = rng.random_range(0..=255);
     }
     for reg in 0x0..=0xF {
         let instruction = 0xF055 | (reg << 8) as u16;

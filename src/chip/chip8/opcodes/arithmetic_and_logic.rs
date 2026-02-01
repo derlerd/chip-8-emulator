@@ -1,5 +1,5 @@
 use core::convert::TryFrom;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use std::marker::PhantomData;
 
 use crate::chip::chip8::{
@@ -117,8 +117,8 @@ impl Instruction for RndInstruction {
     /// Opcode of the form `0xCXYZ` (RND). Generates a random value `v`, and sets
     /// `state.registers[X] = v & YZ.
     fn execute(&self, mut state: &mut Chip8) {
-        let mut rng = thread_rng();
-        let sample = rng.gen_range(0, 255);
+        let mut rng = rng();
+        let sample = rng.random_range(0..=255);
 
         state.registers[self.reg as usize] = sample as u8 & self.value;
 
