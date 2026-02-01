@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
 
-use chip_8_emulator::chip::{
+use chip_emulator::{
     chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay, LoadProgramError,
 };
 

@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 use rand::{rng, Rng};
 use std::marker::PhantomData;
 
-use crate::chip::chip8::{
+use crate::chip8::{
     constants::CHIP8_CHARSET_OFFSET,
     opcodes::{
         Instruction, InstructionParsingError, InstructionWithAddress, InstructionWithOperands,

@@ -1,0 +1,14 @@
+[package]
+name = "text-ui"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "emulator-text-ui"
+path = "mod.rs"
+
+[dependencies]
+chip-emulator = { path = "../chip_emulator" }
+crossbeam-channel = "0.5.15"
+cursive = { workspace = true }

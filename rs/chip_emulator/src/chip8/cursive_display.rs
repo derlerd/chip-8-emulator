@@ -1,4 +1,4 @@
-use crate::chip::{chip8::Chip8, Chip, ChipWithCursiveDisplay};
+use crate::{chip8::Chip8, Chip, ChipWithCursiveDisplay};
 
 use cursive::{
     direction::Direction,

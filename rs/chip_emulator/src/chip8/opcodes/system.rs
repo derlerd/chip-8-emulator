@@ -1,7 +1,7 @@
 use core::convert::TryFrom;
 use std::marker::PhantomData;
 
-use crate::chip::chip8::{
+use crate::chip8::{
     opcodes::{Instruction, InstructionParsingError, InstructionWithAddress, Opcode},
     util, Chip8,
 };

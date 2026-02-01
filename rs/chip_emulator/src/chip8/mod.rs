@@ -10,7 +10,7 @@ mod util;
 #[cfg(test)]
 mod tests;
 
-use crate::chip::{
+use crate::{
     chip8::constants::{
         CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_MAX_PROGRAM_SIZE,
         CHIP8_TIMER_RESOLUTION,

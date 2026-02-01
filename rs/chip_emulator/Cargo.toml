@@ -1,0 +1,13 @@
+[package]
+name = "chip-emulator"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+cursive = { workspace = true }
+rand = "0.9.2"
+
+[lib]
+name = "chip_emulator"
+path = "src/lib.rs"

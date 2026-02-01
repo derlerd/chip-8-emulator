@@ -7,7 +7,7 @@ mod system;
 use core::convert::{Into, TryFrom};
 use std::marker::PhantomData;
 
-use crate::chip::chip8::{
+use crate::chip8::{
     opcodes::{
         arithmetic_and_logic::{
             AddInstruction, DrwInstruction, LdInstruction, LdrInstruction, LduInstruction,

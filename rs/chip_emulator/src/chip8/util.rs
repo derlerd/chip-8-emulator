@@ -1,4 +1,4 @@
-use crate::chip::chip8::Chip8;
+use crate::chip8::Chip8;
 
 /// Convenience function to do a conditional skip in case `f(opcode, state)` evaluates to
 /// `true`.

@@ -1,6 +1,6 @@
-use crate::chip::chip8::Chip8;
-use crate::chip::chip8::CHIP8_CHARSET_OFFSET;
-use crate::chip::Chip;
+use crate::chip8::Chip8;
+use crate::chip8::CHIP8_CHARSET_OFFSET;
+use crate::Chip;
 
 use rand::{rng, Rng};
 use std::convert::TryInto;
