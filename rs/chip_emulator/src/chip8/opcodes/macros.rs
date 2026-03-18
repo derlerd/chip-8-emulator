@@ -19,7 +19,7 @@ macro_rules! define_instruction_with_address {
                 }
                 Ok(Self {
                     instruction: PhantomData,
-                    address: opcode.payload.address(),
+                    address: opcode.payload.into(),
                 })
             }
         }
@@ -45,11 +45,9 @@ macro_rules! define_instruction_with_reg_and_value {
                         $instruction_class,
                     ));
                 }
-                let (reg, value) = opcode.payload.reg_and_value();
                 Ok(Self {
                     instruction: PhantomData,
-                    reg,
-                    value,
+                    reg_and_value: opcode.payload.into()
                 })
             }
         }
@@ -75,12 +73,9 @@ macro_rules! define_instruction_with_operands {
                         $instruction_class,
                     ));
                 }
-                let (op1, op2, op3) = opcode.payload.operands();
                 Ok(Self {
                     instruction: PhantomData,
-                    op1,
-                    op2,
-                    op3,
+                    operands: opcode.payload.into()
                 })
             }
         }

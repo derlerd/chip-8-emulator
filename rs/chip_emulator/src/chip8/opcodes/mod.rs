@@ -44,26 +44,36 @@ pub(super) struct OpcodePayload {
     bytes: [u8; 3],
 }
 
-impl OpcodePayload {
-    /// Interprets the opcode payload as an address in the range 0x000 to
-    /// 0xFFF (inclusive) and returns an u16 containing this address.
-    fn address(&self) -> u16 {
-        (self.bytes[0] as u16) << 8 | (self.bytes[1] as u16) << 4 | self.bytes[2] as u16
-    }
+/// Interprets the opcode payload as an address in the range 0x000 to
+/// 0xFFF (inclusive) and returns an u16 containing this address.
+type Address = u16;
 
-    /// Interprets the most significant nibble of the opcode as a register
-    /// address in range 0x0 - 0xF (inclusive) and the remaining nibbles
-    /// as a value in range 0x00 - 0xFF (inclusive) and returns a tuple
-    /// representing these values.
-    fn reg_and_value(&self) -> (u8, u8) {
-        (self.bytes[0], (self.bytes[1] << 4) | self.bytes[2])
+impl From<OpcodePayload> for Address {
+    fn from(opcode_payload: OpcodePayload) -> Address {
+        (opcode_payload.bytes[0] as u16) << 8 | (opcode_payload.bytes[1] as u16) << 4 | opcode_payload.bytes[2] as u16
     }
+}
 
-    /// Interprets the opcode payload as three operands, each of size
-    /// one nibble, i.e., in range 0x0 - 0xF (inclusive) and returns
-    /// a triple representing these values.
-    fn operands(&self) -> (u8, u8, u8) {
-        (self.bytes[0], self.bytes[1], self.bytes[2])
+type RegAndValue = (u8, u8);
+
+/// Interprets the most significant nibble of the opcode as a register
+/// address in range 0x0 - 0xF (inclusive) and the remaining nibbles
+/// as a value in range 0x00 - 0xFF (inclusive) and returns a tuple
+/// representing these values.
+impl From<OpcodePayload> for RegAndValue {
+    fn from(opcode_payload: OpcodePayload) -> RegAndValue {
+        (opcode_payload.bytes[0], (opcode_payload.bytes[1] << 4) | opcode_payload.bytes[2])
+    }
+}
+
+type Operands = (u8, u8, u8);
+
+/// Interprets the opcode payload as three operands, each of size
+/// one nibble, i.e., in range 0x0 - 0xF (inclusive) and returns
+/// a triple representing these values.
+impl From<OpcodePayload> for Operands {
+    fn from(opcode_payload: OpcodePayload) -> Operands {
+        (opcode_payload.bytes[0], opcode_payload.bytes[1], opcode_payload.bytes[2])
     }
 }
 
@@ -135,22 +145,43 @@ trait Instruction {
 /// Represents an opcode that expects the payload to be an address.
 struct InstructionWithAddress<T> {
     instruction: PhantomData<T>,
-    address: u16,
+    address: Address,
 }
 
 /// Represents an opcode that expects the payload to be three operands.
 struct InstructionWithOperands<T> {
     instruction: PhantomData<T>,
-    op1: u8,
-    op2: u8,
-    op3: u8,
+    operands: Operands
+}
+
+impl<T> InstructionWithOperands<T> {
+    fn op1(&self) -> u8 {
+        self.operands.0
+    }
+
+    fn op2(&self) -> u8 {
+        self.operands.1
+    }
+
+    fn op3(&self) -> u8 {
+        self.operands.2
+    }
 }
 
 /// Represents an opcode that expects the payload to be a register pointer and a value.
 struct InstructionWithRegAndValue<T> {
     instruction: PhantomData<T>,
-    reg: u8,
-    value: u8,
+    reg_and_value: RegAndValue,
+}
+
+impl<T> InstructionWithRegAndValue<T> {
+    fn reg(&self) -> u8 {
+        self.reg_and_value.0
+    }
+
+    fn value(&self) -> u8 {
+        self.reg_and_value.1
+    }
 }
 
 impl std::fmt::Display for InstructionParsingError {

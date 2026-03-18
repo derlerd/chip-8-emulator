@@ -33,7 +33,7 @@ impl Instruction for SeInstruction {
     /// Opcode of the form `0x3XYZ` (SE). Skip the next instruction if `state.registers[X] == YZ`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
-            state.registers[instruction.reg as usize] == instruction.value
+            state.registers[instruction.reg() as usize] == instruction.value()
         });
         util::increment_program_counter(&mut state);
     }
@@ -44,7 +44,7 @@ impl Instruction for SneInstruction {
     /// Opcode of the form `0x4XYZ` (SNE). Skip the next instruction if `state.registers[X] != YZ`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
-            state.registers[instruction.reg as usize] != instruction.value
+            state.registers[instruction.reg() as usize] != instruction.value()
         });
         util::increment_program_counter(&mut state);
     }
@@ -55,8 +55,8 @@ impl Instruction for SreInstruction {
     /// Opcode of the form `0x5XY0` (SRE). Skip the next instruction if `state.registers[X] == state.registers[y]`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
-            assert_eq!(instruction.op3, 0, "Unsupported opcode");
-            state.registers[instruction.op1 as usize] == state.registers[instruction.op2 as usize]
+            assert_eq!(instruction.op3(), 0, "Unsupported opcode");
+            state.registers[instruction.op1() as usize] == state.registers[instruction.op2() as usize]
         });
         util::increment_program_counter(&mut state);
     }
@@ -67,8 +67,8 @@ impl Instruction for SrneInstruction {
     /// Opcode of the form `0x9XY0` (SRNE). Skip the next instruction if `state.registers[X] != state.registers[Y]`.
     fn execute(&self, mut state: &mut Chip8) {
         util::conditional_skip(&self, &mut state, |instruction, state| {
-            assert_eq!(instruction.op3, 0, "Unsupported opcode");
-            state.registers[instruction.op1 as usize] != state.registers[instruction.op2 as usize]
+            assert_eq!(instruction.op3(), 0, "Unsupported opcode");
+            state.registers[instruction.op1() as usize] != state.registers[instruction.op2() as usize]
         });
         util::increment_program_counter(&mut state);
     }
@@ -93,9 +93,9 @@ impl Instruction for SkInstruction {
     /// - If `YZ == A1`, it skips the next instruction if the key stored in `state.registers[X]`
     ///   is not pressed.
     fn execute(&self, mut state: &mut Chip8) {
-        let skip = match self.value {
-            0x9E => state.input_pins[state.registers[self.reg as usize] as usize],
-            0xA1 => !state.input_pins[state.registers[self.reg as usize] as usize],
+        let skip = match self.value() {
+            0x9E => state.input_pins[state.registers[self.reg() as usize] as usize],
+            0xA1 => !state.input_pins[state.registers[self.reg() as usize] as usize],
             _ => unimplemented!("Unsupported opcode"),
         };
         if skip {

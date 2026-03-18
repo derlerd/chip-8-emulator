@@ -15,7 +15,7 @@ define_instruction_with_reg_and_value!(Ldr, LdrInstruction, 0x6);
 impl Instruction for LdrInstruction {
     /// Opcode of the form `0x6XYZ` (LDR). Load a value `YZ` into `state.registers[X]`.
     fn execute(&self, mut state: &mut Chip8) {
-        state.registers[self.reg as usize] = self.value;
+        state.registers[self.reg() as usize] = self.value();
         util::increment_program_counter(&mut state);
     }
 }
@@ -24,8 +24,8 @@ define_instruction_with_reg_and_value!(Add, AddInstruction, 0x7);
 impl Instruction for AddInstruction {
     /// Opcode of the form `0x7XYZ` (ADD). Add value `YZ` into `state.registers[X]`.    
     fn execute(&self, mut state: &mut Chip8) {
-        state.registers[self.reg as usize] =
-            state.registers[self.reg as usize].wrapping_add(self.value);
+        state.registers[self.reg() as usize] =
+            state.registers[self.reg() as usize].wrapping_add(self.value());
         util::increment_program_counter(&mut state);
     }
 }
@@ -74,27 +74,27 @@ impl Instruction for RegInstruction {
             }
         }
 
-        match self.op3 {
-            0x0 => modify_registers(&mut state, self.op1, self.op2, |_, v2| (v2, None)),
-            0x1 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 | v2, None)),
-            0x2 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 & v2, None)),
-            0x3 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| (v1 ^ v2, None)),
-            0x4 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+        match self.op3() {
+            0x0 => modify_registers(&mut state, self.op1(), self.op2(), |_, v2| (v2, None)),
+            0x1 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 | v2, None)),
+            0x2 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 & v2, None)),
+            0x3 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 ^ v2, None)),
+            0x4 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v1.overflowing_add(v2);
                 (result, Some(overflow))
             }),
-            0x5 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+            0x5 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v1.overflowing_sub(v2);
                 (result, Some(!overflow))
             }),
-            0x6 => modify_registers(&mut state, self.op1, self.op2, |v1, _| {
+            0x6 => modify_registers(&mut state, self.op1(), self.op2(), |v1, _| {
                 (v1 >> 1, Some(v1 & 1 != 0))
             }),
-            0x7 => modify_registers(&mut state, self.op1, self.op2, |v1, v2| {
+            0x7 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v2.overflowing_sub(v1);
                 (result, Some(!overflow))
             }),
-            0xE => modify_registers(&mut state, self.op1, self.op2, |v1, _| {
+            0xE => modify_registers(&mut state, self.op1(), self.op2(), |v1, _| {
                 (v1 << 1, Some(v1 & 0x80 != 0))
             }),
             _ => panic!("Unsupported opcode"),
@@ -120,7 +120,7 @@ impl Instruction for RndInstruction {
         let mut rng = rng();
         let sample = rng.random_range(0..=255);
 
-        state.registers[self.reg as usize] = sample as u8 & self.value;
+        state.registers[self.reg() as usize] = sample as u8 & self.value();
 
         util::increment_program_counter(&mut state);
     }
@@ -142,9 +142,9 @@ impl Instruction for DrwInstruction {
             ((x % 64) + ((y % 32) * 64)) as usize
         }
 
-        let x = state.registers[self.op1 as usize];
-        let y = state.registers[self.op2 as usize];
-        let n = self.op3;
+        let x = state.registers[self.op1() as usize];
+        let y = state.registers[self.op2() as usize];
+        let n = self.op3();
 
         state.registers[0xF] = 0;
         for y_pos in 0..n {
@@ -206,15 +206,15 @@ impl Instruction for LduInstruction {
     ///   at `state.index`.
     ///
     fn execute(&self, mut state: &mut Chip8) {
-        match self.value {
+        match self.value() {
             0x07 => {
-                state.registers[self.reg as usize] = state.delay_timer;
+                state.registers[self.reg() as usize] = state.delay_timer;
             }
             0x0A => {
                 let mut input_pin_set = false;
                 for i in 0x0..=0xF {
                     if state.input_pins[i] {
-                        state.registers[self.reg as usize] = i as u8;
+                        state.registers[self.reg() as usize] = i as u8;
                         input_pin_set = true;
                         break;
                     }
@@ -227,23 +227,23 @@ impl Instruction for LduInstruction {
                 }
             }
             0x15 => {
-                state.delay_timer = state.registers[self.reg as usize];
+                state.delay_timer = state.registers[self.reg() as usize];
             }
             0x18 => {
-                state.sound_timer = state.registers[self.reg as usize];
+                state.sound_timer = state.registers[self.reg() as usize];
             }
             0x1E => {
                 state.index = state
                     .index
-                    .wrapping_add(state.registers[self.reg as usize] as u16);
+                    .wrapping_add(state.registers[self.reg() as usize] as u16);
             }
             0x29 => {
-                let character: u16 = state.registers[self.reg as usize] as u16;
+                let character: u16 = state.registers[self.reg() as usize] as u16;
                 assert!(character <= 0xF);
                 state.index = CHIP8_CHARSET_OFFSET + character * 5;
             }
             0x33 => {
-                let mut a: u8 = state.registers[self.reg as usize];
+                let mut a: u8 = state.registers[self.reg() as usize];
                 state.memory[(state.index + 2) as usize] = (a % 10) as u8;
 
                 a /= 10;
@@ -253,13 +253,13 @@ impl Instruction for LduInstruction {
                 state.memory[state.index as usize] = (a % 10) as u8;
             }
             0x55 => {
-                for reg in 0x0..=self.reg {
+                for reg in 0x0..=self.reg() {
                     state.memory[((state.index + reg as u16) % 4096) as usize] =
                         state.registers[reg as usize];
                 }
             }
             0x65 => {
-                for reg in 0x0..=self.reg {
+                for reg in 0x0..=self.reg() {
                     state.registers[reg as usize] =
                         state.memory[((state.index + reg as u16) % 4096) as usize];
                 }
