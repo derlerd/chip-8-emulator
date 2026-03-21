@@ -1,4 +1,4 @@
-use crossbeam_channel::{bounded, Receiver};
+use crossbeam_channel::{Receiver, bounded};
 use cursive::CbSink;
 use std::env;
 use std::fs;
@@ -7,7 +7,7 @@ use std::io::Read;
 use std::time::Duration;
 
 use chip_emulator::{
-    chip8::cursive_display::Display, chip8::Chip8, Chip, ChipWithCursiveDisplay, LoadProgramError,
+    Chip, ChipWithCursiveDisplay, LoadProgramError, chip8::Chip8, chip8::cursive_display::Display,
 };
 
 /// Error type for errors that occur during parsing the command line arguments

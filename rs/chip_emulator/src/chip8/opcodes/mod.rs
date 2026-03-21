@@ -7,19 +7,22 @@ mod system;
 use core::convert::{Into, TryFrom};
 use std::marker::PhantomData;
 
-use crate::chip8::{
-    opcodes::{
-        arithmetic_and_logic::{
-            AddInstruction, DrwInstruction, LdInstruction, LdrInstruction, LduInstruction,
-            RegInstruction, RndInstruction,
+use crate::{
+    Executable, HasOpcode,
+    chip8::{
+        Chip8,
+        opcodes::{
+            arithmetic_and_logic::{
+                AddInstruction, DrwInstruction, LdInstruction, LdrInstruction, LduInstruction,
+                RegInstruction, RndInstruction,
+            },
+            program_flow::{
+                CallInstruction, JmpInstruction, JmprInstruction, SeInstruction, SkInstruction,
+                SneInstruction, SreInstruction, SrneInstruction,
+            },
+            system::SysInstruction,
         },
-        program_flow::{
-            CallInstruction, JmpInstruction, JmprInstruction, SeInstruction, SkInstruction,
-            SneInstruction, SreInstruction, SrneInstruction,
-        },
-        system::SysInstruction,
     },
-    Chip8,
 };
 
 /// Represents a Chip 8 opcode. A Chip 8 opcode is two bytes long.  
@@ -32,6 +35,23 @@ pub(super) struct Opcode {
     instruction_class: u8,
     /// The payload constitutes the remaining nibbles of the opcode.
     payload: OpcodePayload,
+}
+
+impl Opcode {
+    /// Constructs a new `Opcode` given its byte representation.
+    pub(super) fn new(opcode: &[u8; 2]) -> Opcode {
+        Opcode {
+            instruction_class: opcode[0] >> 4,
+            payload: OpcodePayload {
+                bytes: [opcode[0] & 0xF, opcode[1] >> 4, opcode[1] & 0xF],
+            },
+        }
+    }
+
+    pub(super) fn execute(self, mut state: &mut Chip8) {
+        let executable_opcode: Box<dyn Executable<Chip8>> = self.into();
+        executable_opcode.execute(&mut state);
+    }
 }
 
 /// Represents the payload of a Chip 8 opcode. That is the opcode without
@@ -50,7 +70,9 @@ type Address = u16;
 
 impl From<OpcodePayload> for Address {
     fn from(opcode_payload: OpcodePayload) -> Address {
-        (opcode_payload.bytes[0] as u16) << 8 | (opcode_payload.bytes[1] as u16) << 4 | opcode_payload.bytes[2] as u16
+        (opcode_payload.bytes[0] as u16) << 8
+            | (opcode_payload.bytes[1] as u16) << 4
+            | opcode_payload.bytes[2] as u16
     }
 }
 
@@ -62,7 +84,10 @@ type RegAndValue = (u8, u8);
 /// representing these values.
 impl From<OpcodePayload> for RegAndValue {
     fn from(opcode_payload: OpcodePayload) -> RegAndValue {
-        (opcode_payload.bytes[0], (opcode_payload.bytes[1] << 4) | opcode_payload.bytes[2])
+        (
+            opcode_payload.bytes[0],
+            (opcode_payload.bytes[1] << 4) | opcode_payload.bytes[2],
+        )
     }
 }
 
@@ -73,32 +98,84 @@ type Operands = (u8, u8, u8);
 /// a triple representing these values.
 impl From<OpcodePayload> for Operands {
     fn from(opcode_payload: OpcodePayload) -> Operands {
-        (opcode_payload.bytes[0], opcode_payload.bytes[1], opcode_payload.bytes[2])
+        (
+            opcode_payload.bytes[0],
+            opcode_payload.bytes[1],
+            opcode_payload.bytes[2],
+        )
     }
 }
 
-impl Opcode {
-    /// Constructs a new `Opcode` given its byte representation.
-    pub(super) fn new(opcode: &[u8; 2]) -> Opcode {
-        Opcode {
-            instruction_class: opcode[0] >> 4,
-            payload: OpcodePayload {
-                bytes: [opcode[0] & 0xF, opcode[1] >> 4, opcode[1] & 0xF],
-            },
+/// Represents an interpreted, type safe version of an opcode
+struct Instruction<T, P> {
+    instruction: PhantomData<T>,
+    payload: P,
+}
+
+impl<T, P> TryFrom<Opcode> for Instruction<T, P>
+where
+    Self: HasOpcode<Chip8>,
+    P: From<OpcodePayload>,
+{
+    type Error = InstructionParsingError;
+    fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
+        if Self::INSTRUCTION_CLASS != opcode.instruction_class {
+            return Err(InstructionParsingError::InvalidInstructionClass(
+                opcode.instruction_class,
+                Self::INSTRUCTION_CLASS,
+            ));
         }
-    }
-
-    pub(super) fn execute(self, mut state: &mut Chip8) {
-        let executable_opcode: Box<dyn Instruction> = self.into();
-        executable_opcode.execute(&mut state);
+        Ok(Self {
+            instruction: PhantomData,
+            payload: opcode.payload.into(),
+        })
     }
 }
 
-impl From<Opcode> for Box<dyn Instruction> {
-    fn from(opcode: Opcode) -> Box<dyn Instruction> {
+/// Represents an opcode that expects the payload to be an address.
+type InstructionWithAddress<T> = Instruction<T, Address>;
+
+impl<T> InstructionWithAddress<T> {
+    fn address(&self) -> u16 {
+        self.payload
+    }
+}
+
+/// Represents an opcode that expects the payload to be three operands.
+type InstructionWithOperands<T> = Instruction<T, Operands>;
+
+impl<T> InstructionWithOperands<T> {
+    fn op1(&self) -> u8 {
+        self.payload.0
+    }
+
+    fn op2(&self) -> u8 {
+        self.payload.1
+    }
+
+    fn op3(&self) -> u8 {
+        self.payload.2
+    }
+}
+
+/// Represents an opcode that expects the payload to be a register pointer and a value.
+type InstructionWithRegAndValue<T> = Instruction<T, RegAndValue>;
+
+impl<T> InstructionWithRegAndValue<T> {
+    fn reg(&self) -> u8 {
+        self.payload.0
+    }
+
+    fn value(&self) -> u8 {
+        self.payload.1
+    }
+}
+
+impl From<Opcode> for Box<dyn Executable<Chip8>> {
+    fn from(opcode: Opcode) -> Box<dyn Executable<Chip8>> {
         fn into_helper<T>(opcode: Opcode) -> Box<T>
         where
-            T: Instruction + TryFrom<Opcode>,
+            T: Executable<Chip8> + TryFrom<Opcode>,
             <T as TryFrom<Opcode>>::Error: std::fmt::Debug,
         {
             // We can safely unwrap the converted instructions below as we know
@@ -107,22 +184,22 @@ impl From<Opcode> for Box<dyn Instruction> {
         }
 
         match opcode.instruction_class {
-            0x0 => into_helper::<SysInstruction>(opcode),
-            0x1 => into_helper::<JmpInstruction>(opcode),
-            0x2 => into_helper::<CallInstruction>(opcode),
-            0x3 => into_helper::<SeInstruction>(opcode),
-            0x4 => into_helper::<SneInstruction>(opcode),
-            0x5 => into_helper::<SreInstruction>(opcode),
-            0x6 => into_helper::<LdrInstruction>(opcode),
-            0x7 => into_helper::<AddInstruction>(opcode),
-            0x8 => into_helper::<RegInstruction>(opcode),
-            0x9 => into_helper::<SrneInstruction>(opcode),
-            0xA => into_helper::<LdInstruction>(opcode),
-            0xB => into_helper::<JmprInstruction>(opcode),
-            0xC => into_helper::<RndInstruction>(opcode),
-            0xD => into_helper::<DrwInstruction>(opcode),
-            0xE => into_helper::<SkInstruction>(opcode),
-            0xF => into_helper::<LduInstruction>(opcode),
+            SysInstruction::INSTRUCTION_CLASS => into_helper::<SysInstruction>(opcode),
+            JmpInstruction::INSTRUCTION_CLASS => into_helper::<JmpInstruction>(opcode),
+            CallInstruction::INSTRUCTION_CLASS => into_helper::<CallInstruction>(opcode),
+            SeInstruction::INSTRUCTION_CLASS => into_helper::<SeInstruction>(opcode),
+            SneInstruction::INSTRUCTION_CLASS => into_helper::<SneInstruction>(opcode),
+            SreInstruction::INSTRUCTION_CLASS => into_helper::<SreInstruction>(opcode),
+            LdrInstruction::INSTRUCTION_CLASS => into_helper::<LdrInstruction>(opcode),
+            AddInstruction::INSTRUCTION_CLASS => into_helper::<AddInstruction>(opcode),
+            RegInstruction::INSTRUCTION_CLASS => into_helper::<RegInstruction>(opcode),
+            SrneInstruction::INSTRUCTION_CLASS => into_helper::<SrneInstruction>(opcode),
+            LdInstruction::INSTRUCTION_CLASS => into_helper::<LdInstruction>(opcode),
+            JmprInstruction::INSTRUCTION_CLASS => into_helper::<JmprInstruction>(opcode),
+            RndInstruction::INSTRUCTION_CLASS => into_helper::<RndInstruction>(opcode),
+            DrwInstruction::INSTRUCTION_CLASS => into_helper::<DrwInstruction>(opcode),
+            SkInstruction::INSTRUCTION_CLASS => into_helper::<SkInstruction>(opcode),
+            LduInstruction::INSTRUCTION_CLASS => into_helper::<LduInstruction>(opcode),
             _ => unimplemented!("Unsupported opcode: {}", opcode),
         }
     }
@@ -133,55 +210,6 @@ impl From<Opcode> for Box<dyn Instruction> {
 enum InstructionParsingError {
     /// The given
     InvalidInstructionClass(u8, u8),
-}
-
-/// Represents an instruction that can be executed.
-trait Instruction {
-    /// Executes `self` relative to the given `state`. Note that this
-    /// method will in-place modify the given state.
-    fn execute(&self, state: &mut Chip8);
-}
-
-/// Represents an opcode that expects the payload to be an address.
-struct InstructionWithAddress<T> {
-    instruction: PhantomData<T>,
-    address: Address,
-}
-
-/// Represents an opcode that expects the payload to be three operands.
-struct InstructionWithOperands<T> {
-    instruction: PhantomData<T>,
-    operands: Operands
-}
-
-impl<T> InstructionWithOperands<T> {
-    fn op1(&self) -> u8 {
-        self.operands.0
-    }
-
-    fn op2(&self) -> u8 {
-        self.operands.1
-    }
-
-    fn op3(&self) -> u8 {
-        self.operands.2
-    }
-}
-
-/// Represents an opcode that expects the payload to be a register pointer and a value.
-struct InstructionWithRegAndValue<T> {
-    instruction: PhantomData<T>,
-    reg_and_value: RegAndValue,
-}
-
-impl<T> InstructionWithRegAndValue<T> {
-    fn reg(&self) -> u8 {
-        self.reg_and_value.0
-    }
-
-    fn value(&self) -> u8 {
-        self.reg_and_value.1
-    }
 }
 
 impl std::fmt::Display for InstructionParsingError {

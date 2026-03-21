@@ -1,83 +1,16 @@
 /// Defines a struct `$instruction` and a type alias `$name` for
-/// `InstructionWithAddress<$name>`. Implements `TryFrom<&Opcode>` for
-/// `InstructionWithAddress<$name>`. The implementation of `try_from`
+/// `Instruction<$name, $payload>`. Implements `TryFrom<&Opcode>` for
+/// `Instruction<$name, $payload>`. The implementation of `try_from`
 /// will return an error if the instruction class of the given opcode
 /// does not match the instruction class given in $instruction_class.
-macro_rules! define_instruction_with_address {
-    ($instruction:ident, $name:ident, $instruction_class:expr) => {
-        pub(super) struct $instruction;
-        pub(super) type $name = InstructionWithAddress<$instruction>;
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                Ok(Self {
-                    instruction: PhantomData,
-                    address: opcode.payload.into(),
-                })
-            }
+macro_rules! define_instruction {
+    ($name:ident, $payload:ident, $instruction_class:expr) => {
+        paste::paste! {
+            pub(super) struct [<$name Phantom>];
+            pub(super) type $name = Instruction<[<$name Phantom>], $payload>;
         }
-    };
-}
-
-/// Defines a struct `$instruction` and a type alias `$name` for
-/// `InstructionWithRegAndValue<$name>`. Implements `TryFrom<&Opcode>` for
-/// `InstructionWithRegAndValue<$name>`. The implementation of `try_from`
-/// will return an error if the instruction class of the given opcode
-/// does not match the instruction class given in $instruction_class.
-macro_rules! define_instruction_with_reg_and_value {
-    ($instruction:ident, $name:ident, $instruction_class:expr) => {
-        pub(super) struct $instruction;
-        pub(super) type $name = InstructionWithRegAndValue<$instruction>;
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                Ok(Self {
-                    instruction: PhantomData,
-                    reg_and_value: opcode.payload.into()
-                })
-            }
-        }
-    };
-}
-
-/// Defines a struct `$instruction` and a type alias `$name` for
-/// `InstructionWithOperands<$name>`. Implements `TryFrom<&Opcode>` for
-/// `InstructionWithOperands<$name>`. The implementation of `try_from`
-/// will return an error if the instruction class of the given opcode
-/// does not match the instruction class given in $instruction_class.
-macro_rules! define_instruction_with_operands {
-    ($instruction:ident, $name:ident, $instruction_class:expr) => {
-        pub(super) struct $instruction;
-        pub(super) type $name = InstructionWithOperands<$instruction>;
-        impl TryFrom<Opcode> for $name {
-            type Error = InstructionParsingError;
-
-            fn try_from(opcode: Opcode) -> Result<Self, Self::Error> {
-                if opcode.instruction_class != $instruction_class {
-                    return Err(InstructionParsingError::InvalidInstructionClass(
-                        opcode.instruction_class,
-                        $instruction_class,
-                    ));
-                }
-                Ok(Self {
-                    instruction: PhantomData,
-                    operands: opcode.payload.into()
-                })
-            }
+        impl HasOpcode<Chip8> for $name {
+            const INSTRUCTION_CLASS: u8 = $instruction_class;
         }
     };
 }

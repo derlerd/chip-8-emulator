@@ -11,12 +11,12 @@ mod util;
 mod tests;
 
 use crate::{
+    Chip, LoadProgramError,
     chip8::constants::{
         CHIP8_CHARSET, CHIP8_CHARSET_LEN, CHIP8_CHARSET_OFFSET, CHIP8_MAX_PROGRAM_SIZE,
         CHIP8_TIMER_RESOLUTION,
     },
     chip8::opcodes::Opcode,
-    Chip, LoadProgramError,
 };
 
 /// Represents the state of the CHIP-8.

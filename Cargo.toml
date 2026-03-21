@@ -2,7 +2,7 @@
 
 members = [
   "rs/text-ui",
-  "rs/chip_emulator"
+  "rs/chip_emulator",
 ]
 
 resolver = "3"

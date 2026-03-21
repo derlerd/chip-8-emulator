@@ -1,13 +1,11 @@
-use core::convert::TryFrom;
-use std::marker::PhantomData;
-
 use crate::chip8::{
-    opcodes::{Instruction, InstructionParsingError, InstructionWithAddress, Opcode},
-    util, Chip8,
+    Chip8,
+    opcodes::{Address, Executable, HasOpcode, Instruction},
+    util,
 };
 
-define_instruction_with_address!(Sys, SysInstruction, 0x0);
-impl Instruction for SysInstruction {
+define_instruction!(SysInstruction, Address, 0x0);
+impl Executable<Chip8> for SysInstruction {
     /// Opcode of the form `0x0XYZ` (SYS). Groups various system instructions.
     ///
     /// - If `XYZ == 0x0E0`, it clears the display.
@@ -15,7 +13,7 @@ impl Instruction for SysInstruction {
     /// - If `XYZ == 0x0EE`, it returns from the current subroutine.
     ///
     fn execute(&self, mut state: &mut Chip8) {
-        match self.address {
+        match self.address() {
             0x0E0 => {
                 state.output_pins = [false; 64 * 32];
                 state.program_counter += 2;

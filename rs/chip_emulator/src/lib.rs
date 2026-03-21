@@ -12,15 +12,6 @@ pub enum LoadProgramError {
     ProgramTooLarge(usize),
 }
 
-/// Represents a chip that supports display output via by sending
-/// instructions to callback sink of the cursive terminal UI
-/// framework.
-pub trait ChipWithCursiveDisplay {
-    /// Gives the implementation the possibility to send instructions to
-    /// update the UI to `gfx_sink`.
-    fn update_ui(&mut self, gfx_sink: &CbSink);
-}
-
 /// Represents a chip.
 pub trait Chip {
     /// The type used to address input pins
@@ -59,4 +50,28 @@ impl std::fmt::Display for LoadProgramError {
             ),
         }
     }
+}
+
+/// Represents an instruction that can be executed.
+pub trait Executable<T: Chip> {
+    /// Executes `self` relative to the given `state`. Note that this
+    /// method will in-place modify the given state.
+    fn execute(&self, state: &mut T);
+}
+
+/// Extends the `Executable` trait to add a constant representing the
+/// opcode. This is intended to give the ability to do some sanity
+/// checks when converting from the binary form to more strongly typed
+/// varianst of an instruction.
+pub trait HasOpcode<T: Chip>: Executable<T> {
+    const INSTRUCTION_CLASS: u8;
+}
+
+/// Represents a chip that supports display output via by sending
+/// instructions to callback sink of the cursive terminal UI
+/// framework.
+pub trait ChipWithCursiveDisplay {
+    /// Gives the implementation the possibility to send instructions to
+    /// update the UI to `gfx_sink`.
+    fn update_ui(&mut self, gfx_sink: &CbSink);
 }

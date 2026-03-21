@@ -1,11 +1,11 @@
-use crate::{chip8::Chip8, Chip, ChipWithCursiveDisplay};
+use crate::{Chip, ChipWithCursiveDisplay, chip8::Chip8};
 
 use cursive::{
+    CbSink, Printer, Vec2,
     direction::Direction,
     event::{Event, EventResult},
     theme::{BaseColor, Color, ColorStyle},
-    view::{View, CannotFocus},
-    CbSink, Printer, Vec2,
+    view::{CannotFocus, View},
 };
 
 /// Represents the display of the CHIP-8

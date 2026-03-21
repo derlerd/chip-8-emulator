@@ -1,8 +1,9 @@
-use crate::chip8::Chip8;
-use crate::chip8::CHIP8_CHARSET_OFFSET;
-use crate::Chip;
+use crate::{
+    Chip,
+    chip8::{CHIP8_CHARSET_OFFSET, Chip8},
+};
 
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use std::convert::TryInto;
 
 /// Prepares a new CHIP-8 with a program consisting of a single instruction
