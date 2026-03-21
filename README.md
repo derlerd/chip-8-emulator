@@ -1,5 +1,6 @@
 # CHIP-8 Emulator
 
+
 This is an implementation of an emulator of a chip supporting the CHIP-8 
 [instruction set](https://en.wikipedia.org/wiki/CHIP-8). For graphical output, 
 it relies on the [cursive](https://github.com/gyscos/cursive) text user interface 
