@@ -1,8 +1,6 @@
-/// Defines a struct `$instruction` and a type alias `$name` for
-/// `Instruction<$name, $payload>`. Implements `TryFrom<&Opcode>` for
-/// `Instruction<$name, $payload>`. The implementation of `try_from`
-/// will return an error if the instruction class of the given opcode
-/// does not match the instruction class given in $instruction_class.
+/// Defines a struct `$name||Phantom` and a type alias `$name` for
+/// `Instruction<$name||Phantom, $payload>`. Implements `HasOpcode<Chip8>`
+/// for `$name`.
 macro_rules! define_instruction {
     ($name:ident, $payload:ident, $instruction_class:expr) => {
         paste::paste! {
