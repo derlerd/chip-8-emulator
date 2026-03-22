@@ -8,7 +8,6 @@ members = [
 resolver = "3"
 
 [workspace.package]
-name = "chip-8-emulator"
 version = "0.1.0"
 authors = ["David Derler <david@derler.info>"]
 edition = "2024"
