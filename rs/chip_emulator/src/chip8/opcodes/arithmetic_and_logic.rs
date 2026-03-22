@@ -10,19 +10,19 @@ use crate::chip8::{
 define_instruction!(LdrInstruction, RegAndValue, 0x6);
 impl Executable<Chip8> for LdrInstruction {
     /// Opcode of the form `0x6XYZ` (LDR). Load a value `YZ` into `state.registers[X]`.
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         state.registers[self.reg() as usize] = self.value();
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
 define_instruction!(AddInstruction, RegAndValue, 0x7);
 impl Executable<Chip8> for AddInstruction {
     /// Opcode of the form `0x7XYZ` (ADD). Add value `YZ` into `state.registers[X]`.    
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         state.registers[self.reg() as usize] =
             state.registers[self.reg() as usize].wrapping_add(self.value());
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
@@ -54,7 +54,7 @@ impl Executable<Chip8> for RegInstruction {
     /// - If `Z == 0xE`, it sets `state.registers[X] = state.registers[X] << 1`; `state.registers[0xF]`
     ///   is set to `1` if the shifted out bit is set, and to `0` otherwise.
     ///
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         fn modify_registers(
             state: &mut Chip8,
             r1: u8,
@@ -71,40 +71,40 @@ impl Executable<Chip8> for RegInstruction {
         }
 
         match self.op3() {
-            0x0 => modify_registers(&mut state, self.op1(), self.op2(), |_, v2| (v2, None)),
-            0x1 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 | v2, None)),
-            0x2 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 & v2, None)),
-            0x3 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| (v1 ^ v2, None)),
-            0x4 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
+            0x0 => modify_registers(state, self.op1(), self.op2(), |_, v2| (v2, None)),
+            0x1 => modify_registers(state, self.op1(), self.op2(), |v1, v2| (v1 | v2, None)),
+            0x2 => modify_registers(state, self.op1(), self.op2(), |v1, v2| (v1 & v2, None)),
+            0x3 => modify_registers(state, self.op1(), self.op2(), |v1, v2| (v1 ^ v2, None)),
+            0x4 => modify_registers(state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v1.overflowing_add(v2);
                 (result, Some(overflow))
             }),
-            0x5 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
+            0x5 => modify_registers(state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v1.overflowing_sub(v2);
                 (result, Some(!overflow))
             }),
-            0x6 => modify_registers(&mut state, self.op1(), self.op2(), |v1, _| {
+            0x6 => modify_registers(state, self.op1(), self.op2(), |v1, _| {
                 (v1 >> 1, Some(v1 & 1 != 0))
             }),
-            0x7 => modify_registers(&mut state, self.op1(), self.op2(), |v1, v2| {
+            0x7 => modify_registers(state, self.op1(), self.op2(), |v1, v2| {
                 let (result, overflow) = v2.overflowing_sub(v1);
                 (result, Some(!overflow))
             }),
-            0xE => modify_registers(&mut state, self.op1(), self.op2(), |v1, _| {
+            0xE => modify_registers(state, self.op1(), self.op2(), |v1, _| {
                 (v1 << 1, Some(v1 & 0x80 != 0))
             }),
             _ => panic!("Unsupported opcode"),
         };
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
 define_instruction!(LdInstruction, Address, 0xA);
 impl Executable<Chip8> for LdInstruction {
     /// Opcode of the form `0xAXYZ` (LD). Loads `XYZ` into `state.index`.
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         state.index = self.address();
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
@@ -112,13 +112,13 @@ define_instruction!(RndInstruction, RegAndValue, 0xC);
 impl Executable<Chip8> for RndInstruction {
     /// Opcode of the form `0xCXYZ` (RND). Generates a random value `v`, and sets
     /// `state.registers[X] = v & YZ.
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         let mut rng = rng();
         let sample = rng.random_range(0..=255);
 
         state.registers[self.reg() as usize] = sample as u8 & self.value();
 
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
@@ -133,7 +133,7 @@ impl Executable<Chip8> for DrwInstruction {
     ///   given in the index register.
     /// - `state.registers[0xF]` is set to `1` if any pixel is flipped to `0`, and
     ///   to `0` otherwise.
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         fn translate_gfx(x: u16, y: u16) -> usize {
             ((x % 64) + ((y % 32) * 64)) as usize
         }
@@ -169,7 +169,7 @@ impl Executable<Chip8> for DrwInstruction {
                 pixel_mask >>= 1;
             }
         }
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
@@ -201,7 +201,7 @@ impl Executable<Chip8> for LduInstruction {
     /// - If `YZ == 0x65`, load `state.registers[0]` to `state.registers[X]` from memory starting
     ///   at `state.index`.
     ///
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         match self.value() {
             0x07 => {
                 state.registers[self.reg() as usize] = state.delay_timer;
@@ -240,13 +240,13 @@ impl Executable<Chip8> for LduInstruction {
             }
             0x33 => {
                 let mut a: u8 = state.registers[self.reg() as usize];
-                state.memory[(state.index + 2) as usize] = (a % 10) as u8;
+                state.memory[(state.index + 2) as usize] = a % 10;
 
                 a /= 10;
-                state.memory[(state.index + 1) as usize] = (a % 10) as u8;
+                state.memory[(state.index + 1) as usize] = a % 10;
 
                 a /= 10;
-                state.memory[state.index as usize] = (a % 10) as u8;
+                state.memory[state.index as usize] = a % 10;
             }
             0x55 => {
                 for reg in 0x0..=self.reg() {
@@ -262,6 +262,6 @@ impl Executable<Chip8> for LduInstruction {
             }
             _ => unimplemented!("Unsupported opcode"),
         }
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }

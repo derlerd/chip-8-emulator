@@ -48,9 +48,9 @@ impl Opcode {
         }
     }
 
-    pub(super) fn execute(self, mut state: &mut Chip8) {
+    pub(super) fn execute(self, state: &mut Chip8) {
         let executable_opcode: Box<dyn Executable<Chip8>> = self.into();
-        executable_opcode.execute(&mut state);
+        executable_opcode.execute(state);
     }
 }
 

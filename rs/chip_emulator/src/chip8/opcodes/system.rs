@@ -12,7 +12,7 @@ impl Executable<Chip8> for SysInstruction {
     ///
     /// - If `XYZ == 0x0EE`, it returns from the current subroutine.
     ///
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         match self.address() {
             0x0E0 => {
                 state.output_pins = [false; 64 * 32];
@@ -21,8 +21,8 @@ impl Executable<Chip8> for SysInstruction {
             0x0EE => {
                 assert!(state.stack_pointer > 0, "Stack underflow");
                 state.program_counter = state.stack[(state.stack_pointer - 1) as usize];
-                state.stack_pointer = state.stack_pointer - 1;
-                util::increment_program_counter(&mut state);
+                state.stack_pointer -= 1;
+                util::increment_program_counter(state);
             }
             _ => panic!("Opcode not supported"),
         };

@@ -113,9 +113,9 @@ fn test_skip_if_equal() {
             instruction |= reg << 8;
             test_skip_if(
                 instruction,
-                reg.try_into().unwrap(),
+                reg.into(),
                 cmp.try_into().unwrap(),
-                ((cmp as u8).wrapping_add(1)).try_into().unwrap(),
+                (cmp as u8).wrapping_add(1),
                 Condition::Equal,
             );
         }
@@ -131,9 +131,9 @@ fn test_skip_if_not_equal() {
             instruction |= register << 8;
             test_skip_if(
                 instruction,
-                register.try_into().unwrap(),
+                register.into(),
                 cmp.try_into().unwrap(),
-                ((cmp as u8).wrapping_add(1)).try_into().unwrap(),
+                (cmp as u8).wrapping_add(1),
                 Condition::NotEqual,
             );
         }
@@ -297,7 +297,7 @@ fn test_skip_if_reg_not_equal() {
 #[test]
 fn test_set_index() {
     for value in 0x0..=0xFFF {
-        let instruction = 0xA000 as u16 | value as u16;
+        let instruction = 0xA000_u16 | value;
         do_cycle(
             instruction,
             |state| {
@@ -314,7 +314,7 @@ fn test_set_index() {
 #[test]
 fn test_set_program_counter() {
     for value in 0x0..=0xFFF {
-        let instruction = 0xB000 as u16 | value as u16;
+        let instruction = 0xB000_u16 | value;
         do_cycle(
             instruction,
             |state| {
@@ -322,7 +322,7 @@ fn test_set_program_counter() {
                 state.registers[0] = 0xA;
             },
             |state| {
-                assert_eq!(state.program_counter, (0xA as u16).wrapping_add(value));
+                assert_eq!(state.program_counter, (0xA_u16).wrapping_add(value));
             },
         );
     }
@@ -495,7 +495,7 @@ fn test_inc_index_by_reg() {
                     state.registers[reg as usize] = 0xAB;
                 },
                 |state| {
-                    assert_eq!(state.index, (0xAB as u16).wrapping_add(index));
+                    assert_eq!(state.index, 0xAB_u16.wrapping_add(index));
                     assert_eq!(state.program_counter, 0x202);
                 },
             );
@@ -507,7 +507,7 @@ fn test_inc_index_by_reg() {
 fn test_load_sprite() {
     for reg in 0x0..=0xF {
         for character in 0x0..=0xF {
-            let instruction = 0xF029 as u16 | (reg << 8) as u16;
+            let instruction = 0xF029_u16 | (reg << 8) as u16;
             do_cycle(
                 instruction,
                 |state| {
@@ -526,7 +526,7 @@ fn test_load_sprite() {
 #[test]
 fn test_bcd() {
     for reg in 0x0..=0xF {
-        let instruction = 0xF033 as u16 | (reg << 8) as u16;
+        let instruction = 0xF033_u16 | (reg << 8) as u16;
         do_cycle(
             instruction,
             |state| {
@@ -535,7 +535,7 @@ fn test_bcd() {
             },
             |state| {
                 assert_eq!(state.program_counter, 0x202);
-                assert_eq!(state.memory[(state.index + 0) as usize], 1);
+                assert_eq!(state.memory[state.index as usize], 1);
                 assert_eq!(state.memory[(state.index + 1) as usize], 2);
                 assert_eq!(state.memory[(state.index + 2) as usize], 3);
             },
@@ -547,8 +547,8 @@ fn test_bcd() {
 fn test_reg_dump_load() {
     let mut register_values = [0; 16];
     let mut rng = rng();
-    for i in 0x0..=0xF {
-        register_values[i] = rng.random_range(0..=255);
+    for value in &mut register_values {
+        *value = rng.random_range(0..=255);
     }
     for reg in 0x0..=0xF {
         let instruction = 0xF055 | (reg << 8) as u16;
@@ -556,17 +556,15 @@ fn test_reg_dump_load() {
             instruction,
             |state| {
                 assert_eq!(state.program_counter, 0x200);
-                for r in 0x0..=reg {
-                    state.registers[r] = register_values[r]
-                }
+                state.registers[0x0..=reg].copy_from_slice(&register_values[0x0..=reg]);
                 state.index = 0x400;
             },
             |state| {
-                for r in 0x0..=0xF {
+                for (r, value) in register_values.iter().enumerate() {
                     if r <= reg {
                         assert_eq!(
                             state.memory[((state.index + r as u16) % 4096) as usize],
-                            register_values[r]
+                            *value
                         );
                     } else {
                         assert_eq!(state.memory[((state.index + r as u16) % 4096) as usize], 0);
@@ -582,14 +580,14 @@ fn test_reg_dump_load() {
             |state| {
                 assert_eq!(state.program_counter, 0x200);
                 state.index = 0x400;
-                for r in 0x0..=0xF {
-                    state.memory[((state.index + r as u16) % 4096) as usize] = register_values[r];
+                for (r, value) in register_values.iter().enumerate() {
+                    state.memory[((state.index + r as u16) % 4096) as usize] = *value;
                 }
             },
             |state| {
-                for r in 0x0..=0xF {
+                for (r, value) in register_values.iter().enumerate() {
                     if r <= reg {
-                        assert_eq!(state.registers[r], register_values[r]);
+                        assert_eq!(state.registers[r], *value);
                     } else {
                         assert_eq!(state.registers[r], 0);
                     }

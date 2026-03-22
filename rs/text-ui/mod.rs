@@ -138,7 +138,7 @@ fn main() {
             chip8,
             EventLoopChannels {
                 gfx_sender: cb_sink,
-                key_receiver: key_receiver,
+                key_receiver,
             },
         );
     });
