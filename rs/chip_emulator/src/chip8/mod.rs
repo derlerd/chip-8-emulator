@@ -98,7 +98,10 @@ impl Chip for Chip8 {
 
         state.cycles_since_timer_dec += 1;
 
-        if state.cycles_since_timer_dec.is_multiple_of(CHIP8_TIMER_RESOLUTION) {
+        if state
+            .cycles_since_timer_dec
+            .is_multiple_of(CHIP8_TIMER_RESOLUTION)
+        {
             if state.delay_timer > 0 {
                 state.delay_timer -= 1;
             }
