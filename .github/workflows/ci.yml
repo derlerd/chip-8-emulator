@@ -1,4 +1,4 @@
-name: Build and test
+name: Run CI tests
 
 on:
   push:
@@ -8,18 +8,29 @@ on:
     
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  build-and-test:
-
+  format_and_lint:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Update toolchain
       run: rustup update
     - name: Format
       run: cargo fmt --all --check
+    - name: Clippy
+      run: cargo clippy --all-targets --all-features
+
+  build_and_test:
+    needs: format_and_lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Update toolchain
+      run: rustup update
     - name: Build
       run: cargo build --verbose
     - name: Run tests
