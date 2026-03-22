@@ -84,8 +84,8 @@ impl Chip for Chip8 {
             return Err(LoadProgramError::ProgramTooLarge(program.len()));
         }
 
-        for i in 0..program.len() {
-            self.set_memory_byte(program[i], (0x200 + i) as u16);
+        for (i, instruction) in program.iter().enumerate() {
+            self.set_memory_byte(*instruction, (0x200 + i) as u16);
         }
 
         Ok(())
@@ -93,12 +93,15 @@ impl Chip for Chip8 {
 
     fn cycle(&mut self) {
         let opcode = self.next_instruction();
-        let mut state = self;
-        opcode.execute(&mut state);
+        let state = self;
+        opcode.execute(state);
 
         state.cycles_since_timer_dec += 1;
 
-        if state.cycles_since_timer_dec % CHIP8_TIMER_RESOLUTION == 0 {
+        if state
+            .cycles_since_timer_dec
+            .is_multiple_of(CHIP8_TIMER_RESOLUTION)
+        {
             if state.delay_timer > 0 {
                 state.delay_timer -= 1;
             }

@@ -18,7 +18,7 @@ impl Display {
     pub fn new(pixels: &[bool]) -> Self {
         assert_eq!(pixels.len(), 64 * 32);
         let mut tmp = [false; 64 * 32];
-        tmp.copy_from_slice(&pixels[..]);
+        tmp.copy_from_slice(pixels);
         Display { pixels: tmp }
     }
 }
@@ -69,7 +69,7 @@ impl ChipWithCursiveDisplay for Chip8 {
         if !self.draw {
             return;
         }
-        let display = get_display(&self);
+        let display = get_display(self);
         gfx_sink
             .send(Box::new(Box::new(move |s: &mut cursive::Cursive| {
                 s.pop_layer();

@@ -18,7 +18,7 @@ impl Executable<Chip8> for CallInstruction {
     fn execute(&self, state: &mut Chip8) {
         assert!(state.stack_pointer < 16, "Stack overflow");
         state.stack[state.stack_pointer as usize] = state.program_counter;
-        state.stack_pointer = state.stack_pointer + 1;
+        state.stack_pointer += 1;
         state.program_counter = self.address();
     }
 }
@@ -26,48 +26,48 @@ impl Executable<Chip8> for CallInstruction {
 define_instruction!(SeInstruction, RegAndValue, 0x3);
 impl Executable<Chip8> for SeInstruction {
     /// Opcode of the form `0x3XYZ` (SE). Skip the next instruction if `state.registers[X] == YZ`.
-    fn execute(&self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
+    fn execute(&self, state: &mut Chip8) {
+        util::conditional_skip(&self, state, |instruction, state| {
             state.registers[instruction.reg() as usize] == instruction.value()
         });
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
 define_instruction!(SneInstruction, RegAndValue, 0x4);
 impl Executable<Chip8> for SneInstruction {
     /// Opcode of the form `0x4XYZ` (SNE). Skip the next instruction if `state.registers[X] != YZ`.
-    fn execute(&self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
+    fn execute(&self, state: &mut Chip8) {
+        util::conditional_skip(&self, state, |instruction, state| {
             state.registers[instruction.reg() as usize] != instruction.value()
         });
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
 define_instruction!(SreInstruction, Operands, 0x5);
 impl Executable<Chip8> for SreInstruction {
     /// Opcode of the form `0x5XY0` (SRE). Skip the next instruction if `state.registers[X] == state.registers[y]`.
-    fn execute(&self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
+    fn execute(&self, state: &mut Chip8) {
+        util::conditional_skip(&self, state, |instruction, state| {
             assert_eq!(instruction.op3(), 0, "Unsupported opcode");
             state.registers[instruction.op1() as usize]
                 == state.registers[instruction.op2() as usize]
         });
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
 define_instruction!(SrneInstruction, Operands, 0x9);
 impl Executable<Chip8> for SrneInstruction {
     /// Opcode of the form `0x9XY0` (SRNE). Skip the next instruction if `state.registers[X] != state.registers[Y]`.
-    fn execute(&self, mut state: &mut Chip8) {
-        util::conditional_skip(&self, &mut state, |instruction, state| {
+    fn execute(&self, state: &mut Chip8) {
+        util::conditional_skip(&self, state, |instruction, state| {
             assert_eq!(instruction.op3(), 0, "Unsupported opcode");
             state.registers[instruction.op1() as usize]
                 != state.registers[instruction.op2() as usize]
         });
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
 
@@ -89,15 +89,15 @@ impl Executable<Chip8> for SkInstruction {
     ///
     /// - If `YZ == A1`, it skips the next instruction if the key stored in `state.registers[X]`
     ///   is not pressed.
-    fn execute(&self, mut state: &mut Chip8) {
+    fn execute(&self, state: &mut Chip8) {
         let skip = match self.value() {
             0x9E => state.input_pins[state.registers[self.reg() as usize] as usize],
             0xA1 => !state.input_pins[state.registers[self.reg() as usize] as usize],
             _ => unimplemented!("Unsupported opcode"),
         };
         if skip {
-            util::increment_program_counter(&mut state);
+            util::increment_program_counter(state);
         }
-        util::increment_program_counter(&mut state);
+        util::increment_program_counter(state);
     }
 }
