@@ -1,10 +1,12 @@
-use crossbeam_channel::{Receiver, bounded};
+use crossbeam_channel::{Receiver, Sender, bounded};
 use cursive::CbSink;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
+use std::time::Instant;
 
 use chip_emulator::{
     Chip, ChipWithCursiveDisplay, LoadProgramError, chip8::Chip8, chip8::cursive_display::Display,
@@ -31,7 +33,7 @@ enum Event<T> {
     /// listen to key down/up events. To get around this we simply
     /// read the stdin (indirectly via registering for cursive
     /// events) and assign one key to trigger releasing all keys.
-    KeyRelease,
+    KeyRelease(T),
 
     /// Decreases the sleep time after each cycle.
     SpeedUp,
@@ -41,6 +43,68 @@ enum Event<T> {
 
     /// Shut down.
     Quit,
+}
+
+/// Helper for emulating key-release events. Key events are received over
+/// `receiver` and forwarded to `sender`. `Event::KeyRelease(_)` coming
+/// in from `receiver` are ignored and instead key release events are sent to
+/// receiver `release_time_ms` after the corresponding key was pressed.
+struct KeyInterceptor<T> {
+    receiver: Receiver<Event<T>>,
+    sender: Sender<Event<T>>,
+    active_keys: HashMap<T, Instant>,
+    release_time_ms: u128,
+}
+
+impl<T> KeyInterceptor<T>
+where
+    T: std::cmp::Eq + std::hash::Hash + Copy,
+{
+    fn new(receiver: Receiver<Event<T>>, sender: Sender<Event<T>>, release_time_ms: u128) -> Self {
+        Self {
+            receiver,
+            sender,
+            active_keys: HashMap::new(),
+            release_time_ms,
+        }
+    }
+
+    /// Starts the interceptor event loop listening on `self.receiver` and forwarding
+    /// events to `self.sender`.
+    fn run(&mut self) {
+        loop {
+            match self.receiver.try_recv() {
+                Ok(Event::Key(key)) => {
+                    self.active_keys.insert(key, Instant::now());
+                    self.sender.send(Event::Key(key)).unwrap();
+                }
+                Ok(Event::KeyRelease(_key)) => {
+                    // Do nothing here. Release events will be sent below after the
+                    // defined time has elapsed.
+                }
+                Ok(Event::Quit) => {
+                    self.sender.send(Event::Quit).unwrap();
+                    return;
+                }
+                Ok(Event::SpeedUp) => {
+                    self.sender.send(Event::SpeedUp).unwrap();
+                }
+                Ok(Event::SlowDown) => {
+                    self.sender.send(Event::SlowDown).unwrap();
+                }
+                Err(_) => { /* do nothing */ }
+            }
+            self.active_keys.retain(|key, time| {
+                if time.elapsed().as_millis() > self.release_time_ms {
+                    self.sender.send(Event::KeyRelease(*key)).unwrap();
+                    return false;
+                }
+                true
+            });
+
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
 }
 
 /// Represents the channels available to the event loop. It is generic
@@ -67,8 +131,8 @@ where
             Ok(Event::Key(key)) => {
                 chip.set_input_pin(key, true);
             }
-            Ok(Event::KeyRelease) => {
-                chip.reset_input_pins();
+            Ok(Event::KeyRelease(key)) => {
+                chip.set_input_pin(key, false);
             }
             Ok(Event::Quit) => {
                 return;
@@ -131,7 +195,14 @@ fn main() {
     let mut siv = cursive::default();
 
     let cb_sink = siv.cb_sink().clone();
-    let (key_sender, key_receiver) = bounded::<Event<u8>>(10);
+    let (key_sender, interceptor_receiver) = bounded::<Event<u8>>(10);
+    let (interceptor_sender, key_receiver) = bounded::<Event<u8>>(10);
+
+    let mut interceptor = KeyInterceptor::new(interceptor_receiver, interceptor_sender, 100);
+
+    let interceptor_handle = std::thread::spawn(move || {
+        interceptor.run();
+    });
 
     let event_loop_handle = std::thread::spawn(move || {
         event_loop(
@@ -174,11 +245,6 @@ fn main() {
     }
 
     let sender = key_sender.clone();
-    siv.add_global_callback(' ', move |_s| {
-        sender.send(Event::KeyRelease).unwrap();
-    });
-
-    let sender = key_sender.clone();
     siv.add_global_callback(cursive::event::Key::Up, move |_s| {
         sender.send(Event::SpeedUp).unwrap();
     });
@@ -191,6 +257,10 @@ fn main() {
     siv.add_layer(Display::default());
 
     siv.run();
+
+    interceptor_handle
+        .join()
+        .expect("Could not join interceptor loop handle");
 
     event_loop_handle
         .join()
