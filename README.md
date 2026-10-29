@@ -46,6 +46,5 @@ mapping below.
 |    A (`0x7`)    |    S (`0x8`)    |    D (`0x9`)    |    F (`0xE`)    |
 |    Z (`0xA`)    |    X (`0x0`)    |    C (`0xB`)    |    V (`0xF`)    |
 
-Given that OS X requires special permissions to listen to key-release events, we decided to
-work around this by _mapping the space bar as a key-release bar_. So once a key is pressed
-it will remain set until the space bar is hit. Pressing escape will quit the emulator.
+Once a key is pressed it will remain set for 100ms to emulate key-release events.
+Pressing escape will quit the emulator.
